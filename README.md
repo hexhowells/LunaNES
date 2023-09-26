@@ -1,2 +1,2 @@
-# LumaNES
+# LunaNES
 NES Emulator
