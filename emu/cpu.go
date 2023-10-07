@@ -730,6 +730,7 @@ func (cpu *CPU) NOP() uint8 {
 	return 0
 }
 
+// Instruction: Bitwise Logic OR
 func (cpu *CPU) ORA() uint8 {
 	cpu.Fetch()
 	cpu.a = cpu.a | cpu.fetched
@@ -739,6 +740,7 @@ func (cpu *CPU) ORA() uint8 {
 	return 0
 }
 
+// Instruction: Push Accuumulator to Stack
 func (cpu *CPU) PHA() uint8 {
 	cpu.Write(0x0100 + cpu.stkp, cpu.a)
 	cpu.stkp--
@@ -746,6 +748,7 @@ func (cpu *CPU) PHA() uint8 {
 	return 0
 }
 
+// Instruction: Push Status Register to Stack
 func (cpu *CPU) PHP() uint8 {
 	cpu.Write(0x0100 + cpu.stkp, cpu.status | B | U)
 	cpu.SetFlag(B, 0)
@@ -755,6 +758,7 @@ func (cpu *CPU) PHP() uint8 {
 	return 0
 }
 
+// Instruction: Pop Accumulator off Stack
 func (cpu *CPU) PLA() uint8 {
 	cpu.stkp++
 	cpu.a = cpu.Read(0x0100 + cpu.stkp)
@@ -764,6 +768,7 @@ func (cpu *CPU) PLA() uint8 {
 	return 0
 }
 
+// Instruction: Pop Status Register off Stack
 func (cpu *CPU) PLP() uint8 {
 	cpu.stkp++
 	cpu.status = cpu.Read(0x0100 + cpu.stkp)
@@ -831,42 +836,49 @@ func (cpu *CPU) RTS() uint8 {
 	return 0
 }
 
+// Instruction: Set Carry Flag
 func (cpu *CPU) SEC() uint8 {
 	cpu.SetFlag(C, true)
 
 	return 0
 }
 
+// Instruction: Set Decimal Flag
 func (cpu *CPU) SED() uint8 {
 	cpu.SetFlag(D, true)
 
 	return 0
 }
 
+// Instruction:  Set Interrupt Flag / Emable Interrupts
 func (cpu *CPU) SEI() uint8 {
 	cpu.SetFlag(I, true)
 
 	return 0
 }
 
+// Instruction: Store Accumulator at Address
 func (cpu *CPU) STA() uint8 {
 	cpu.Write(cpu.addr_abs, cpu.a)
 
 	return 0
 }
 
+// Instruction: Store X Register at Address
 func (cpu *CPU) STX() uint8 {
 	cpu.Write(cpu.addr_abs, cpu.x)
 
 	return 0
 }
 
+// Instruction: Store Y Register at Address
 func (cpu *CPU) STY() uint8 {
 	cpu.Write(cpu.addr_abs, cpu.y)
 
 	return 0
 }
 
+// Instruction: Transfer Accumulator to X Register
 func (cpu *CPU) TAX() uint8 {
 	cpu.x = cpu.a
 	cpu.SetFlag(Z, cpu.x == 0x00)
@@ -875,6 +887,7 @@ func (cpu *CPU) TAX() uint8 {
 	return 0
 }
 
+// Instruction: Transfer Accumulator to Y Register
 func (cpu *CPU) TAY() uint8 {
 	cpu.y = cpu.a
 	cpu.SetFlag(Z, cpu.y == 0x00)
@@ -883,6 +896,7 @@ func (cpu *CPU) TAY() uint8 {
 	return 0
 }
 
+// Instruction: Transfer Stack Pointer to X Register
 func (cpu *CPU) TSX() uint8 {
 	cpu.x = cpu.stkp
 	cpu.SetFlag(Z, cpu.x == 0x00)
@@ -891,6 +905,7 @@ func (cpu *CPU) TSX() uint8 {
 	return 0
 }
 
+// Instruction: Transfer X Register to Accumulator
 func (cpu *CPU) TXA() uint8 {
 	cpu.a = cpu.x
 	cpu.SetFlag(Z, cpu.a == 0x00)
@@ -899,12 +914,14 @@ func (cpu *CPU) TXA() uint8 {
 	return 0
 }
 
+// Instruction: Transfer X Register to Stack Pointer
 func (cpu *CPU) TXS() uint8 {
 	cpu.stkp = cpu.x
 
 	return 0
 }
 
+// Instruction: Transfer Y Register to Accumulator
 func (cpu *CPU) TYA() uint8 {
 	cpu.a = cpu.y
 	cpu.SetFlag(Z, cpu.a == 0x00)
@@ -913,6 +930,7 @@ func (cpu *CPU) TYA() uint8 {
 	return 0
 }
 
+// Illegal Opcodes
 func (cpu *CPU) XXX() uint8 {
 	return 0
 }
