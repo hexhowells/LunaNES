@@ -661,90 +661,193 @@ func (cpu *CPU) LDY() uint8 {
 }
 
 func (cpu *CPU) NOP() uint8 {
+	switch cpu.opcode {
+	case 0x1C, 0x3C, 0x5C, 0x7C, 0xDC, 0xFC:
+		return 1
+	}
 	return 0
 }
 
 func (cpu *CPU) ORA() uint8 {
+	cpu.Fetch()
+	cpu.a = cpu.a | cpu.fetched
+	cpu.SetFlag(Z, cpu.a == 0x00)
+	cpu.SetFlag(N, cpu.a & 0x80)
+
 	return 0
 }
 
 func (cpu *CPU) PHA() uint8 {
+	cpu.Write(0x0100 + cpu.stkp, cpu.a)
+	cpu.stkp--
+
 	return 0
 }
 
 func (cpu *CPU) PHP() uint8 {
+	cpu.Write(0x0100 + cpu.stkp, cpu.status | B | U)
+	cpu.SetFlag(B, 0)
+	cpu.SetFlag(U, 0)
+	cpu.stkp--
+
 	return 0
 }
 
 func (cpu *CPU) PLA() uint8 {
+	cpu.stkp++
+	cpu.a = cpu.Read(0x0100 + cpu.stkp)
+	cpu.SetFlag(Z, cpu.a == 0x00)
+	cpu.SetFlag(N, cpu.a & 0x80)
+
 	return 0
 }
 
 func (cpu *CPU) PLP() uint8 {
+	cpu.stkp++
+	cpu.status = cpu.Read(0x0100 + cpu.stkp)
+	cpu.SetFlag(U, 1)
+
 	return 0
 }
 
 func (cpu *CPU) ROL() uint8 {
+	cpu.Fetch()
+	temp := uint16(cpu.fetched << 1) | cpu.GetFlag(C)
+	cpu.SetFlag(C, temp & 0xFF00)
+	cpu.SetFlag(Z, (temp & 0x00FF) == 0x0000)
+	cpu.SetFlag(N, temp & 0x0080)
+
+	if cpu.lookup[cpu.opcode].AddrMode == (*CPU)IMP {
+		cpu.a = temp & 0x00FF
+	}
+	else {
+		cpu.Write(cpu.addr_abs, temp & 0x00FF)
+	}
+
 	return 0
 }
 
 func (cpu *CPU) ROR() uint8 {
+	cpu.Fetch()
+	temp := uint16(cpu.GetFlag(C) << 7) | (cpu.fetched >> 1)
+	cpu.SetFlag(C, cpu.fetched & 0x01)
+	cpu.SetFlag(Z, (temp & 0x00FF) == 0x00)
+	cpu.SetFlag(N, temp & 0x0080)
+
+	if cpu.lookup[cpu.opcode].AddrMode == (*CPU)IMP {
+		cpu.a = temp & 0x00FF
+	}
+	else {
+		cpu.Write(cpu.addr_abs, temp & 0x00FF)
+	}
+
 	return 0
 }
 
 func (cpu *CPU) RTI() uint8 {
+	cpu.stkp++
+	cpu.status = cpu.Read(0x0100 + cpu.stkp)
+	cpu.status &= ^B
+	cpu.status &= ^U
+
+	cpu.stkp++
+	cpu.pc = uint16(cpu.Read(0x0100 + cpu.stkp))
+	cpu.stkp++
+	cpu.pc |= uint16(cpu.Read(0x0100 + cpu.stkp)) << 8
+
 	return 0
 }
 
 func (cpu *CPU) RTS() uint8 {
+	cpu.stkp++
+	cpu.pc = uint16(cpu.Read(0x0100 + cpu.stkp))
+	cpu.stkp++
+	cpu.pc |= uint16(cpu.Read(0x0100 + cpu.stkp)) << 8
+
+	cpu.pc++
+
 	return 0
 }
 
 func (cpu *CPU) SEC() uint8 {
+	cpu.SetFlag(C, true)
+
 	return 0
 }
 
 func (cpu *CPU) SED() uint8 {
+	cpu.SetFlag(D, true)
+
 	return 0
 }
 
 func (cpu *CPU) SEI() uint8 {
+	cpu.SetFlag(I, true)
+
 	return 0
 }
 
 func (cpu *CPU) STA() uint8 {
+	cpu.Write(cpu.addr_abs, cpu.a)
+
 	return 0
 }
 
 func (cpu *CPU) STX() uint8 {
+	cpu.Write(cpu.addr_abs, cpu.x)
+
 	return 0
 }
 
 func (cpu *CPU) STY() uint8 {
+	cpu.Write(cpu.addr_abs, cpu.y)
+
 	return 0
 }
 
 func (cpu *CPU) TAX() uint8 {
+	cpu.x = cpu.a
+	cpu.SetFlag(Z, cpu.x == 0x00)
+	cpu.SetFlag(N, cpu.x & 0x80)
+
 	return 0
 }
 
 func (cpu *CPU) TAY() uint8 {
+	cpu.y = cpu.a
+	cpu.SetFlag(Z, cpu.y == 0x00)
+	cpu.SetFlag(N, cpu.y & 0x80)
+
 	return 0
 }
 
 func (cpu *CPU) TSX() uint8 {
+	cpu.x = cpu.stkp
+	cpu.SetFlag(Z, cpu.x == 0x00)
+	cpu.SetFlag(N, cpu.x & 0x80)
+
 	return 0
 }
 
 func (cpu *CPU) TXA() uint8 {
+	cpu.a = cpu.x
+	cpu.SetFlag(Z, cpu.a == 0x00)
+	cpu.SetFlag(N, cpu.a & 0x80)
+
 	return 0
 }
 
 func (cpu *CPU) TXS() uint8 {
+	cpu.stkp = cpu.x
+
 	return 0
 }
 
 func (cpu *CPU) TYA() uint8 {
+	cpu.a = cpu.y
+	cpu.SetFlag(Z, cpu.a == 0x00)
+	cpu.SetFlag(N, cpu.a & 0x80)
+	
 	return 0
 }
 
