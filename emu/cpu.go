@@ -152,18 +152,21 @@ func (cpu *CPU) Fetch() {
 
 // Addressing Modes
 
+// Address Mode: Implied
 func (cpu *CPU) IMP() uint8 {
 	cpu.fetched = cpu.a
 
 	return 0
 }
 
+// Address Mode: Immediate
 func (cpu *CPU) IMM() uint8 {
 	cpu.addr_abs = cpu.pc++
 
 	return 0
 }
 
+// Address Mode: Zero Page
 func (cpu *CPU) ZP0() uint8 {
 	cpu.addr_abs = cpu.Read(cpu.pc)
 	cpu.pc++
@@ -172,6 +175,7 @@ func (cpu *CPU) ZP0() uint8 {
 	return 0
 }
 
+// Address Mode: Zero Page with X Offset
 func (cpu *CPU) ZPX() uint8 {
 	cpu.addr_abs = (cpu.Read(cpu.pc) + cpu.x)
 	cpu.pc++
@@ -180,6 +184,7 @@ func (cpu *CPU) ZPX() uint8 {
 	return 0
 }
 
+// Address Mode: Zero Page with Y Offset
 func (cpu *CPU) ZPY() uint8 {
 	cpu.addr_abs = (cpu.Read(cpu.pc) + cpu.y)
 	cpu.pc++
@@ -188,6 +193,7 @@ func (cpu *CPU) ZPY() uint8 {
 	return 0
 }
 
+// Address Mode: Relative
 func (cpu *CPU) REL() uint8 {
 	cpu.addr_rel = cpu.Read(cpu.pc)
 	cpu.pc++
@@ -198,6 +204,7 @@ func (cpu *CPU) REL() uint8 {
 	return 0
 }
 
+// Address Mode: Absolute
 func (cpu *CPU) ABS() uint8 {
 	lo := cpu.Read(cpu.pc)
 	cpu.pc++
@@ -209,6 +216,7 @@ func (cpu *CPU) ABS() uint8 {
 	return 0
 }
 
+// Address Mode: Absolute with X Offset
 func (cpu *CPU) ABX() uint8 {
 	lo := cpu.Read(cpu.pc)
 	cpu.pc++
@@ -225,6 +233,7 @@ func (cpu *CPU) ABX() uint8 {
 	return 0
 }
 
+// Address Mode: Absolute with Y Offset
 func (cpu *CPU) ABY() uint8 {
 	lo := cpu.Read(cpu.pc)
 	cpu.pc++
@@ -241,6 +250,7 @@ func (cpu *CPU) ABY() uint8 {
 	return 0
 }
 
+// Address Mode: Indirect
 func (cpu *CPU) IND() uint8 {
 	ptr_lo := cpu.Read(cpu.pc)
 	cpu.pc++
@@ -259,6 +269,7 @@ func (cpu *CPU) IND() uint8 {
 	return 0
 }
 
+// Address Mode: Indirect X
 func (cpu *CPU) IZX() uint8 {
 	t := cpu.Read(cpu.pc)
 	cpu.pc++
@@ -271,6 +282,7 @@ func (cpu *CPU) IZX() uint8 {
 	return 0
 }
 
+// Address Mode: Indirect Y
 func (cpu *CPU) IZY() uint8 {
 	t := cpu.Read(cpu.pc)
 	cpu.pc++
@@ -290,6 +302,8 @@ func (cpu *CPU) IZY() uint8 {
 
 
 // Instruction Implementations
+
+// Instruction: Add with Carry In
 func (cpu *CPU) ADC() uint8 {
 	cpu.Fetch()
 
@@ -308,6 +322,7 @@ func (cpu *CPU) ADC() uint8 {
 	return 1
 }
 
+// Instruction: Subtraction with Borrow In
 func (cpu *CPU) SBC() uint8 {
 	cpu.Fetch()
 
@@ -323,6 +338,7 @@ func (cpu *CPU) SBC() uint8 {
 	return 1
 }
 
+// Instruction: Bitwise logic AND
 func (cpu *CPU) AND() uint8 {
 	cpu.Fetch()
 	cpu.a = cpu.a & cpu.fetched
@@ -332,6 +348,7 @@ func (cpu *CPU) AND() uint8 {
 	return 1
 }
 
+// Instruction: Bitwise Shift Left
 func (cpu *CPU) ASL() uint8 {
 	cpu.Fetch()
 	temp := uint16(cpu.fetched << 1)
@@ -349,6 +366,7 @@ func (cpu *CPU) ASL() uint8 {
 	return 0
 }
 
+// Instruction: Branch if Carry Clear
 func (cpu *CPU) BCC() uint8 {
 	if cpu.GetFlag(C) == 0 {
 		cpu.cycles++
@@ -364,6 +382,7 @@ func (cpu *CPU) BCC() uint8 {
 	return 0
 }
 
+// Instruction: Branch if Carry Set
 func (cpu *CPU) BCS() uint8 {
 	if cpu.GetFlag(C) == 1 {
 		cpu.cycles++
@@ -379,6 +398,7 @@ func (cpu *CPU) BCS() uint8 {
 	return 0
 }
 
+// Instruction: Branch if Equal
 func (cpu *CPU) BEQ() uint8 {
 	if cpu.GetFlag(Z) == 1 {
 		cpu.cycles++
@@ -405,6 +425,7 @@ func (cpu *CPU) BIT() uint8 {
 	return 0
 }
 
+// Instruction: Branch if Negative
 func (cpu *CPU) BMI() uint8 {
 	if cpu.GetFlag(N) == 1 {
 		cpu.cycles++
@@ -420,6 +441,7 @@ func (cpu *CPU) BMI() uint8 {
 	return 0
 }
 
+// Instruction: Branch if Not Equal
 func (cpu *CPU) BNE() uint8 {
 	if cpu.GetFlag(Z) == 0 {
 		cpu.cycles++
@@ -435,6 +457,7 @@ func (cpu *CPU) BNE() uint8 {
 	return 0
 }
 
+// Instruction: Branch if Positive
 func (cpu *CPU) BPL() uint8 {
 	if cpu.GetFlag(N) == 0 {
 		cpu.cycles++
@@ -450,6 +473,7 @@ func (cpu *CPU) BPL() uint8 {
 	return 0
 }
 
+// Instruction: Break
 func (cpu *CPU) BRK() uint8 {
 	cpu.pc++
 
@@ -469,6 +493,7 @@ func (cpu *CPU) BRK() uint8 {
 	return 0
 }
 
+// Instruction: Branch if Overflow Clear
 func (cpu *CPU) BVC() uint8 {
 	if cpu.GetFlag(V) == 0 {
 		cpu.cycles++
@@ -484,6 +509,7 @@ func (cpu *CPU) BVC() uint8 {
 	return 0
 }
 
+// Instruction: Branch if Overflow Set
 func (cpu *CPU) BVS() uint8 {
 	if cpu.GetFlag(V) == 1 {
 		cpu.cycles++
@@ -499,30 +525,35 @@ func (cpu *CPU) BVS() uint8 {
 	return 0
 }
 
+// Instruction: Clear Carry Flag
 func (cpu *CPU) CLC() uint8 {
 	cpu.SetFlag(C, false)
 
 	return 0
 }
 
+// Instruction: Clear Decimal Flag
 func (cpu *CPU) CLD() uint8 {
 	cpu.SetFlag(D, false)
 
 	return 0
 }
 
+// Instruction: Disable Interrupts / Clear Interrupt Flag
 func (cpu *CPU) CLI() uint8 {
 	cpu.SetFlag(I, false)
 
 	return 0
 }
 
+// Instruction: Clear Overflow Flag
 func (cpu *CPU) CLV() uint8 {
 	cpu.SetFlag(V, false)
 
 	return 0
 }
 
+// Instruction: Compare Accumulator
 func (cpu *CPU) CMP() uint8 {
 	cpu.Fetch()
 	temp := uint16(cpu.a) - uint16(cpu.fetched)
@@ -533,6 +564,7 @@ func (cpu *CPU) CMP() uint8 {
 	return 1
 }
 
+// Instruction: Compare X Register
 func (cpu *CPU) CPX() uint8 {
 	cpu.Fetch()
 	temp := uint16(cpu.x) - uint16(cpu.fetched)
@@ -543,6 +575,7 @@ func (cpu *CPU) CPX() uint8 {
 	return 0
 }
 
+// Instruction: Comapre Y Register
 func (cpu *CPU) CPY() uint8 {
 	cpu.Fetch()
 	temp := uint16(cpu.y) - uint16(cpu.fetched)
@@ -553,6 +586,7 @@ func (cpu *CPU) CPY() uint8 {
 	return 0
 }
 
+// Instruction: Decrement Value at Memory Location
 func (cpu *CPU) DEC() uint8 {
 	cpu.Fetch()
 	temp := cpu.fetched - 1
@@ -563,6 +597,7 @@ func (cpu *CPU) DEC() uint8 {
 	return 0
 }
 
+// Instruction: Decrement X Register
 func (cpu *CPU) DEX() uint8 {
 	cpu.x--
 	cpu.SetFlag(Z, cpu.x == 0x00)
@@ -571,6 +606,7 @@ func (cpu *CPU) DEX() uint8 {
 	return 0
 }
 
+// Instruction: Decrement Y Register
 func (cpu *CPU) DEY() uint8 {
 	cpu.y--
 	cpu.SetFlag(Z, cpu.y == 0x00)
@@ -579,6 +615,7 @@ func (cpu *CPU) DEY() uint8 {
 	return 0
 }
 
+// Instruction: Bitwise Logic XOR
 func (cpu *CPU) EOR() uint8 {
 	cpu.Fetch()
 	cpu.a = cpu.a ^ cpu.fetched
@@ -588,6 +625,7 @@ func (cpu *CPU) EOR() uint8 {
 	return 1
 }
 
+// Instruction: Increment Value at Memory Location
 func (cpu *CPU) INC() uint8 {
 	cpu.Fetch()
 	temp := cpu.fetched + 1
@@ -598,6 +636,7 @@ func (cpu *CPU) INC() uint8 {
 	return 0
 }
 
+// Instruction: Increment X Register
 func (cpu *CPU) INX() uint8 {
 	cpu.x++
 	cpu.SetFlag(Z, cpu.x == 0x00)
@@ -606,6 +645,7 @@ func (cpu *CPU) INX() uint8 {
 	return 0
 }
 
+// Instruction: Increment Y Register
 func (cpu *CPU) INY() uint8 {
 	cpu.y++
 	cpu.SetFlag(Z, cpu.y == 0x00)
@@ -614,12 +654,14 @@ func (cpu *CPU) INY() uint8 {
 	return 0
 }
 
+// Instruction: Jump to Location
 func (cpu *CPU) JMP() uint8 {
 	cpu.pc = cpu.addr_abs
 
 	return 0
 }
 
+// Instruction: Jump to Sub-Routine
 func (cpu *CPU) JSR() uint8 {
 	cpu.pc--
 
@@ -633,6 +675,7 @@ func (cpu *CPU) JSR() uint8 {
 	return 0
 }
 
+// Instruction: Load The Accumulator
 func (cpu *CPU) LDA() uint8 {
 	cpu.Fetch()
 	cpu.a = cpu.fetched
@@ -642,6 +685,7 @@ func (cpu *CPU) LDA() uint8 {
 	return 1
 }
 
+// Instruction: Load the X Register
 func (cpu *CPU) LDX() uint8 {
 	cpu.Fetch()
 	cpu.x = cpu.fetched
@@ -651,6 +695,7 @@ func (cpu *CPU) LDX() uint8 {
 	return 1
 }
 
+// Instruction: Load the Y Register
 func (cpu *CPU) LDY() uint8 {
 	cpu.Fetch()
 	cpu.y = cpu.fetched
@@ -847,7 +892,7 @@ func (cpu *CPU) TYA() uint8 {
 	cpu.a = cpu.y
 	cpu.SetFlag(Z, cpu.a == 0x00)
 	cpu.SetFlag(N, cpu.a & 0x80)
-	
+
 	return 0
 }
 
