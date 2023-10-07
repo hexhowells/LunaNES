@@ -705,6 +705,23 @@ func (cpu *CPU) LDY() uint8 {
 	return 1
 }
 
+func (cpu *CPU) LSR() uint8 {
+	cpu.Fetch()
+	cpu.SetFlag(C, cpu.fetched & 0x0001)
+	temp := cpu.fetched >> 1
+	cpu.SetFlag(Z, (temp & 0x00FF) == 0x0000)
+	cpu.SetFlag(N, temp & 0x0080)
+
+	if cpu.lookup[cpu.opcode].AddrMode == (*CPU)IMP {
+		cpu.a = temp & 0x00FF
+	}
+	else {
+		cpu.Write(cpu.addr_abs, temp & 0x00FF)
+	}
+
+	return 0
+}
+
 func (cpu *CPU) NOP() uint8 {
 	switch cpu.opcode {
 	case 0x1C, 0x3C, 0x5C, 0x7C, 0xDC, 0xFC:
