@@ -324,215 +324,428 @@ func (cpu *CPU) SBC() uint8 {
 }
 
 func (cpu *CPU) AND() uint8 {
+	cpu.Fetch()
+	cpu.a = cpu.a & cpu.fetched
+	cpu.SetFlag(Z, cpu.a == 0x00)
+	cpu.SetFlag(N, cpu.a & 0x00)
+
 	return 1
 }
 
 func (cpu *CPU) ASL() uint8 {
-	return 1
+	cpu.Fetch()
+	temp := uint16(cpu.fetched << 1)
+	cpu.SetFlag(C, (temp & 0xFF00) > 0)
+	cpu.SetFlag(Z, (temp & 0x00FF) == 0x00)
+	cpu.SetFlag(N, temp & 0x80)
+
+	if cpu.lookup[cpu.opcode].AddrMode == (*CPU)IMP {
+		cpu.a = temp & 0x00FF
+	}
+	else {
+		cpu.Write(cpu.addr_abs, temp & 0x00FF)
+	}
+
+	return 0
 }
 
 func (cpu *CPU) BCC() uint8 {
-	return 1
+	if cpu.GetFlag(C) == 0 {
+		cpu.cycles++
+		cpu.addr_abs = cpu.pc + cpu.addr_rel
+
+		if (cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00) {
+			cpu.cycles++
+		}
+
+		cpu.pc = cpu.addr_abs
+	}
+
+	return 0
 }
 
 func (cpu *CPU) BCS() uint8 {
-	return 1
+	if cpu.GetFlag(C) == 1 {
+		cpu.cycles++
+		cpu.addr_abs = cpu.pc + cpu.addr_rel
+
+		if (cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00) {
+			cpu.cycles++
+		}
+
+		cpu.pc = cpu.addr_abs
+	}
+
+	return 0
 }
 
 func (cpu *CPU) BEQ() uint8 {
-	return 1
+	if cpu.GetFlag(Z) == 1 {
+		cpu.cycles++
+		cpu.addr_abs = cpu.pc + cpu.addr_rel
+
+		if (cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00) {
+			cpu.cycles++
+		}
+
+		cpu.pc = cpu.addr_abs
+	}
+
+	return 0
 }
 
 func (cpu *CPU) BIT() uint8 {
-	return 1
+	cpu.Fetch()
+	temp := cpu.a & cpu.fetched
+
+	cpu.SetFlag(Z, (temp & 0x00FF) == 0x00)
+	cpu.SetFlag(N, cpu.fetched & (1 << 7))
+	cpu.SetFlag(V, fetched & (1 << 6))
+
+	return 0
 }
 
 func (cpu *CPU) BMI() uint8 {
-	return 1
+	if cpu.GetFlag(N) == 1 {
+		cpu.cycles++
+		cpu.addr_abs = cpu.pc + cpu.addr_rel
+
+		if (cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00) {
+			cpu.cycles++
+		}
+
+		cpu.pc = cpu.addr_abs
+	}
+
+	return 0
 }
 
 func (cpu *CPU) BNE() uint8 {
-	return 1
+	if cpu.GetFlag(Z) == 0 {
+		cpu.cycles++
+		cpu.addr_abs = cpu.pc + cpu.addr_rel
+
+		if (cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00) {
+			cpu.cycles++
+		}
+
+		cpu.pc = cpu.addr_abs
+	}
+
+	return 0
 }
 
 func (cpu *CPU) BPL() uint8 {
-	return 1
+	if cpu.GetFlag(N) == 0 {
+		cpu.cycles++
+		cpu.addr_abs = cpu.pc + cpu.addr_rel
+
+		if (cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00) {
+			cpu.cycles++
+		}
+
+		cpu.pc = cpu.addr_abs
+	}
+
+	return 0
 }
 
 func (cpu *CPU) BRK() uint8 {
-	return 1
+	cpu.pc++
+
+	cpu.SetFlag(I, 1)
+	cpu.Write(0x0100 + cpu.stkp, (cpu.pc >> 8) & 0x00FF)
+	cpu.stkp--
+	cpu.Write(0x0100 + cpu.stkp, cpu.pc & 0x00FF)
+	cpu.stkp--
+
+	cpu.SetFlag(B, 1)
+	cpu.Write(0x0100 + cpu.stkp, cpu.status)
+	cpu.stkp--
+	cpu.SetFlag(B, 0)
+
+	cpu.pc = uint16(cpu.Read(0xFFFE)) | (uint16(cpu.Read(0xFFF)) << 8)
+
+	return 0
 }
 
 func (cpu *CPU) BVC() uint8 {
-	return 1
+	if cpu.GetFlag(V) == 0 {
+		cpu.cycles++
+		cpu.addr_abs = cpu.pc + cpu.addr_rel
+
+		if (cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00) {
+			cpu.cycles++
+		}
+
+		cpu.pc = cpu.addr_abs
+	}
+
+	return 0
 }
 
 func (cpu *CPU) BVS() uint8 {
-	return 1
+	if cpu.GetFlag(V) == 1 {
+		cpu.cycles++
+		cpu.addr_abs = cpu.pc + cpu.addr_rel
+
+		if (cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00) {
+			cpu.cycles++
+		}
+
+		cpu.pc = cpu.addr_abs
+	}
+
+	return 0
 }
 
 func (cpu *CPU) CLC() uint8 {
-	return 1
+	cpu.SetFlag(C, false)
+
+	return 0
 }
 
 func (cpu *CPU) CLD() uint8 {
-	return 1
+	cpu.SetFlag(D, false)
+
+	return 0
 }
 
 func (cpu *CPU) CLI() uint8 {
-	return 1
+	cpu.SetFlag(I, false)
+
+	return 0
 }
 
 func (cpu *CPU) CLV() uint8 {
-	return 1
+	cpu.SetFlag(V, false)
+
+	return 0
 }
 
 func (cpu *CPU) CMP() uint8 {
+	cpu.Fetch()
+	temp := uint16(cpu.a) - uint16(cpu.fetched)
+	cpu.SetFlag(C, cpu.a >= cpu.fetched)
+	cpu.SetFlag(Z, (temp & 0x00FF) == 0x0000)
+	SetFlag(N, temp & 0x0080)
+
 	return 1
 }
 
 func (cpu *CPU) CPX() uint8 {
-	return 1
+	cpu.Fetch()
+	temp := uint16(cpu.x) - uint16(cpu.fetched)
+	cpu.SetFlag(C, cpu.x >= cpu.fetched)
+	cpu.SetFlag(Z, (temp & 0x00FF) == 0x0000)
+	SetFlag(N, temp & 0x0080)
+
+	return 0
 }
 
 func (cpu *CPU) CPY() uint8 {
-	return 1
+	cpu.Fetch()
+	temp := uint16(cpu.y) - uint16(cpu.fetched)
+	cpu.SetFlag(C, cpu.y >= cpu.fetched)
+	cpu.SetFlag(Z, (temp & 0x00FF) == 0x0000)
+	SetFlag(N, temp & 0x0080)
+
+	return 0
 }
 
 func (cpu *CPU) DEC() uint8 {
-	return 1
+	cpu.Fetch()
+	temp := cpu.fetched - 1
+	cpu.Write(cpu.addr_abs, temp & 0x00FF)
+	cpu.SetFlag(Z, (temp & 0x00FF) == 0x0000)
+	cpu.SetFlag(N, temp & 0x0080)
+
+	return 0
 }
 
 func (cpu *CPU) DEX() uint8 {
-	return 1
+	cpu.x--
+	cpu.SetFlag(Z, cpu.x == 0x00)
+	cpu.SetFlag(N, cpu.x & 0x80)
+
+	return 0
 }
 
 func (cpu *CPU) DEY() uint8 {
-	return 1
+	cpu.y--
+	cpu.SetFlag(Z, cpu.y == 0x00)
+	cpu.SetFlag(N, cpu.y & 0x80)
+
+	return 0
 }
 
 func (cpu *CPU) EOR() uint8 {
+	cpu.Fetch()
+	cpu.a = cpu.a ^ cpu.fetched
+	cpu.SetFlag(Z, cpu.a == 0x00)
+	cpu.SetFlag(N, cpu.a & 0x80)
+
 	return 1
 }
 
 func (cpu *CPU) INC() uint8 {
-	return 1
+	cpu.Fetch()
+	temp := cpu.fetched + 1
+	cpu.Write(cpu.addr_abs, temp & 0x00FF)
+	cpu.SetFlag(Z, (temp & 0x00FF) == 0x0000)
+	cpu.SetFlag(N, temp & 0x0080)
+
+	return 0
 }
 
 func (cpu *CPU) INX() uint8 {
-	return 1
+	cpu.x++
+	cpu.SetFlag(Z, cpu.x == 0x00)
+	cpu.SetFlag(N, cpu.x & 0x80)
+
+	return 0
 }
 
 func (cpu *CPU) INY() uint8 {
-	return 1
+	cpu.y++
+	cpu.SetFlag(Z, cpu.y == 0x00)
+	cpu.SetFlag(N, cpu.y & 0x80)
+
+	return 0
 }
 
 func (cpu *CPU) JMP() uint8 {
-	return 1
+	cpu.pc = cpu.addr_abs
+
+	return 0
 }
 
 func (cpu *CPU) JSR() uint8 {
-	return 1
+	cpu.pc--
+
+	cpu.Write(0x0100 + cpu.stkp, (cpu.pc >> 8) & 0x00FF)
+	cpu.stkp--
+	cpu.Write(0x0100 + cpu.stkp, cpu.pc & 0x00FF)
+	cpu.stkp--
+
+	cpu.pc = cpu.addr_abs
+
+	return 0
 }
 
 func (cpu *CPU) LDA() uint8 {
+	cpu.Fetch()
+	cpu.a = cpu.fetched
+	cpu.SetFlag(Z, cpu.a == 0x00)
+	cpu.SetFlag(N, cpu.a & 0x80)
+
 	return 1
 }
 
 func (cpu *CPU) LDX() uint8 {
+	cpu.Fetch()
+	cpu.x = cpu.fetched
+	cpu.SetFlag(Z, cpu.x == 0x00)
+	cpu.SetFlag(N, cpu.x & 0x80)
+
 	return 1
 }
 
 func (cpu *CPU) LDY() uint8 {
+	cpu.Fetch()
+	cpu.y = cpu.fetched
+	cpu.SetFlag(Z, cpu.y == 0x00)
+	cpu.SetFlag(N, cpu.y & 0x80)
+
 	return 1
 }
 
 func (cpu *CPU) NOP() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) ORA() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) PHA() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) PHP() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) PLA() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) PLP() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) ROL() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) ROR() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) RTI() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) RTS() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) SEC() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) SED() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) SEI() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) STA() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) STX() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) STY() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) TAX() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) TAY() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) TSX() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) TXA() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) TXS() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) TYA() uint8 {
-	return 1
+	return 0
 }
 
 func (cpu *CPU) XXX() uint8 {
