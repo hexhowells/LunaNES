@@ -310,11 +310,8 @@ func (cpu *CPU) ADC() uint8 {
 	temp := uint16(cpu.a) + uint16(cpu.fetched) + uint16(cpu.GetFlag(C))
 
 	cpu.SetFlag(C, temp > 255)
-
 	cpu.SetFlag(Z, (temp & 0x00FF) == 0)
-
-	cpu.SetFlag(V, (~(uint16(cpu.a) ^ uint16(cpu.fetched)) & (uint16(cpu.a) ^ uint16(temp))) & 0x0080)
-
+	cpu.SetFlag(V, (^(uint16(cpu.a) ^ uint16(cpu.fetched)) & (uint16(cpu.a) ^ uint16(temp))) & 0x0080)
 	cpu.SetFlag(N, temp & 0x80)
 
 	cpu.a = temp & 0x00FF
@@ -327,12 +324,13 @@ func (cpu *CPU) SBC() uint8 {
 	cpu.Fetch()
 
 	value := uint16(cpu.fetched) ^ 0x00FF
-
 	temp := uint16(cpu.a) + value + uint16(cpu.GetFlag(C))
+
 	cpu.SetFlag(C, temp & 0xFF00)
 	cpu.SetFlag(Z, ((temp & 0x00FF) == 0))
 	cpu.SetFlag(V, (temp ^ uint16(cpu.a)) & (temp ^ value) & 0x0080)
 	cpu.SetFlag(N, temp & 0x0080)
+
 	cpu.a = temp & 0x00FF
 
 	return 1
