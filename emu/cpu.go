@@ -126,19 +126,69 @@ func (cpu *CPU) SetFlag(flag int, v bool) {
 
 // Reset interrupt
 func (cpu *CPU) Reset() {
-	;
+	cpu.a = 0
+	cpu.x = 0
+	cpu.y = 0
+	cpu.stkp = 0xFD
+	cpu.status = 0x00 | U
+
+	cpu.addr_abs = 0xFFFC
+	lo := cpu.Read(cpu.addr_abs + 0)
+	hi := cpu.Read(cpu.addr_abs + 1)
+
+	cpu.pc = (hi << 8) | lo
+
+	cpu.addr_rel = 0x0000
+	cpu.addr_abs = 0x0000
+	cpu.fetched = 0x00
+
+	cpu.cycles = 8
 }
 
 
 // Interrupt request
 func (cpu *CPU) IRQ() {
-	;
+	if cpu.GetFlag(I) == 0 {
+		cpu.Write(0x0100 + cpu.stkp, (cpu.pc >> 8) & 0x00FF)
+		cpu.stkp--
+		cpu.Write(0x0100 + cpu.stkp, (cpu.pc & 0x00FF))
+		cpu.stkp--
+
+		cpu.SetFlag(B, 0)
+		cpu.SetFlag(U, 1)
+		cpu.SetFlag(I, 1)
+		cpu.Write(0x0100 + cpu.stkp, cpu.status)
+		cpu.stkp---
+
+		cpu.addr_abs = 0xFFFE
+		lo := cpu.Read(cpu.addr_abs + 0)
+		hi := cpu.Read(cpu.addr_abs + 1)
+		cpu.pc = (hi << 8) | lo
+
+		cpu.cycles = 7
+	}
 }
 
 
 // Non-Maskable interrupt request
 func (cpu *CPU) NMI() {
-	;
+	cpu.Write(0x0100 + cpu.stkp, (cpu.pc >> 8) & 0x00FF)
+	cpu.stkp---
+	cpu.Write(0x0100 + cpu.stkp, cpu.pc & 0x00FF)
+	cpu.stkp---
+
+	cpu.SetFlag(B, 0)
+	cpu.SetFlag(U, 1)
+	cpu.SetFlag(I, 1)
+	cpu.Write(0x0100 + cpu.stkp, cpu.status)
+	cpu.stkp--
+
+	cpu.addr_abs = 0xFFFA
+	lo := cpu.Read(cpu.addr_abs + 0)
+	hi := cpu.Read(cpu.addr_abs + 1)
+	cpu.pc = (hi << 8) | lo
+
+	cpu.cycles = 8
 }
 
 
