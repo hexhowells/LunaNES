@@ -1014,7 +1014,7 @@ func (cpu *CPU) PrintCPU() {
 	fmt.Println("-----------------------------------------------------------")
 }
 
-func (c *CPU) PrintStatusFlags() {
+func (cpu *CPU) PrintStatusFlags() {
     // Define an array of flag names and their corresponding constants
     flags := []struct {
         name  string
@@ -1037,12 +1037,17 @@ func (c *CPU) PrintStatusFlags() {
     // Iterate through flags and print their status
     for _, flag := range flags {
         status := 0
-        if c.status&flag.value != 0 {
+        if cpu.status&flag.value != 0 {
             status = 1
         }
         fmt.Printf("| %-25s | %-6d |\n", flag.name, status)
     }
 
     fmt.Println("--------------------------------------")
+}
+
+
+func (cpu *CPU) PrintRAM() {
+	cpu.bus.PrintRAM()
 }
 
