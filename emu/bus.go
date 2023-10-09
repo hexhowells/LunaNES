@@ -1,4 +1,4 @@
-import "errors"
+package emu
 
 
 type Bus struct {
@@ -9,7 +9,7 @@ type Bus struct {
 
 func NewBus() *Bus {
 	bus := Bus{}
-	bus.cpu.ConnectBus(bus)
+	bus.cpu.ConnectBus(&bus)
 
 	for i := range bus.ram {
 		bus.ram[i] = 0x00
@@ -19,20 +19,17 @@ func NewBus() *Bus {
 }
 
 
-func (b *Bus) Write(addr uint16, data byte) error {
-	if add >= 0x0000 && addr <= 0xFFFF {
+func (b *Bus) Write(addr uint16, data uint8) {
+	if addr >= 0x0000 && addr <= 0xFFFF {
 		b.ram[addr] = data
-		return nil
 	}
-	
-	return errors.New("address out of bounds")
 }
 
 
-func (b *Bus) Read(addr uint16, bReadOnly boolean) (byte, error) {
-	if add >= 0x0000 && addr <= 0xFFFF {
-		return b.ram[addr], nil
+func (b *Bus) Read(addr uint16, bReadOnly bool) uint8 {
+	if addr >= 0x0000 && addr <= 0xFFFF {
+		return b.ram[addr]
 	}
 
-	return 0x00, errors.New("address out of bounds")
+	return 0x00
 }
