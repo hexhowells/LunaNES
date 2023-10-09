@@ -991,5 +991,58 @@ func (cpu *CPU) XXX() uint8 {
 }
 
 
+//
+// Visualisation functions
+//
+func (cpu *CPU) PrintCPU() {
+	fmt.Println("-----------------------------------------------------------")
+	fmt.Printf("| %-12s | %-12s | %-25s |\n", "Field", "Value", "Description")
+	fmt.Println("-----------------------------------------------------------")
+	fmt.Printf("| %-12s | %-12p | %-25s |\n", "bus", cpu.bus, "Bus Pointer")
+	fmt.Printf("| %-12s | %-12X | %-25s |\n", "a", cpu.a, "Accumulator register")
+	fmt.Printf("| %-12s | %-12X | %-25s |\n", "x", cpu.x, "X register")
+	fmt.Printf("| %-12s | %-12X | %-25s |\n", "y", cpu.y, "Y register")
+	fmt.Printf("| %-12s | %-12X | %-25s |\n", "stkp", cpu.stkp, "Stack pointer")
+	fmt.Printf("| %-12s | %-12X | %-25s |\n", "pc", cpu.pc, "Program counter")
+	fmt.Printf("| %-12s | %-12b | %-25s |\n", "status", cpu.status, "Status register")
+	fmt.Printf("| %-12s | %-12X | %-25s |\n", "fetched", cpu.fetched, "Working input to ALU")
+	fmt.Printf("| %-12s | %-12X | %-25s |\n", "addr_abs", cpu.addr_abs, "")
+	fmt.Printf("| %-12s | %-12X | %-25s |\n", "addr_rel", cpu.addr_rel, "Relative address")
+	fmt.Printf("| %-12s | %-12X | %-25s |\n", "opcode", cpu.opcode, "")
+	fmt.Printf("| %-12s | %-12X | %-25s |\n", "cycles", cpu.cycles, "Cycles left")
+	fmt.Printf("| %-12s | %-12d | %-25s |\n", "clock_count", cpu.clock_count, "")
+	fmt.Println("-----------------------------------------------------------")
+}
 
+func (c *CPU) PrintStatusFlags() {
+    // Define an array of flag names and their corresponding constants
+    flags := []struct {
+        name  string
+        value uint8
+    }{
+        {"C (Carry)", C},
+        {"Z (Zero)", Z},
+        {"I (Disable interrupts)", I},
+        {"D (Decimal mode)", D},
+        {"B (Break)", B},
+        {"U (Unused)", U},
+        {"V (Overflow)", V},
+        {"N (Negative)", N},
+    }
+
+    fmt.Println("--------------------------------------")
+    fmt.Printf("| %-25s | %-6s |\n", "Flag", "Status")
+    fmt.Println("--------------------------------------")
+
+    // Iterate through flags and print their status
+    for _, flag := range flags {
+        status := 0
+        if c.status&flag.value != 0 {
+            status = 1
+        }
+        fmt.Printf("| %-25s | %-6d |\n", flag.name, status)
+    }
+
+    fmt.Println("--------------------------------------")
+}
 
