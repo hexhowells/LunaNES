@@ -39,11 +39,20 @@ func (b *Bus) Read(addr uint16, bReadOnly bool) uint8 {
 }
 
 
-func (b *Bus) PrintRAM() {
+func (b *Bus) PrintRAM(startPage int, pages int) {
 	const bytesPerRow = 16
-	fmt.Println("Address  | 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F | ASCII")
+
+	startPage = 16 * 16 * startPage
+
+	if pages == 0 {
+		pages = len(b.ram)
+	} else {
+		pages = (16 * 16 * pages) + startPage
+	}
+
+	fmt.Println("\nAddress  | 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F | ASCII")
 	fmt.Println("---------+-------------------------------------------------+-----------------")
-	for i := 0; i < len(b.ram); i += bytesPerRow {
+	for i := startPage; i < pages; i += bytesPerRow {
 		// Print address
 		fmt.Printf("%04X     |", i)
 		ascii := ""
