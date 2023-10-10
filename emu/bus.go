@@ -23,6 +23,17 @@ func NewBus() *Bus {
 }
 
 
+func (b *Bus) WriteBytes(addr uint16, data []uint8) {
+	for i, byteData := range data {
+		addr := addr + uint16(i)
+		if addr > 0xFFFF {
+			break // Stop writing if we reach the end of RAM
+		}
+		b.Write(addr, byteData)
+	}
+}
+
+
 func (b *Bus) Write(addr uint16, data uint8) {
 	if addr >= 0x0000 && addr <= 0xFFFF {
 		b.ram[addr] = data
