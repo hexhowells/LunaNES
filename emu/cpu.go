@@ -142,10 +142,10 @@ func (cpu *CPU) Reset() {
 	cpu.status = 0x00 | U
 
 	cpu.addr_abs = 0xFFFC
-	lo := cpu.Read(cpu.addr_abs + 0)
-	hi := cpu.Read(cpu.addr_abs + 1)
+	lo := uint16(cpu.Read(cpu.addr_abs + 0))
+	hi := uint16(cpu.Read(cpu.addr_abs + 1))
 
-	cpu.pc = uint16((hi << 8) | lo)
+	cpu.pc = (hi << 8) | lo
 
 	cpu.addr_rel = 0x0000
 	cpu.addr_abs = 0x0000
@@ -170,9 +170,9 @@ func (cpu *CPU) IRQ() {
 		cpu.stkp--
 
 		cpu.addr_abs = 0xFFFE
-		lo := cpu.Read(cpu.addr_abs + 0)
-		hi := cpu.Read(cpu.addr_abs + 1)
-		cpu.pc = uint16((hi << 8) | lo)
+		lo := uint16(cpu.Read(cpu.addr_abs + 0))
+		hi := uint16(cpu.Read(cpu.addr_abs + 1))
+		cpu.pc = (hi << 8) | lo
 
 		cpu.cycles = 7
 	}
@@ -193,9 +193,9 @@ func (cpu *CPU) NMI() {
 	cpu.stkp--
 
 	cpu.addr_abs = 0xFFFA
-	lo := cpu.Read(cpu.addr_abs + 0)
-	hi := cpu.Read(cpu.addr_abs + 1)
-	cpu.pc = uint16((hi << 8) | lo)
+	lo := uint16(cpu.Read(cpu.addr_abs + 0))
+	hi := uint16(cpu.Read(cpu.addr_abs + 1))
+	cpu.pc = (hi << 8) | lo
 
 	cpu.cycles = 8
 }
@@ -266,24 +266,24 @@ func (cpu *CPU) REL() uint8 {
 
 // Address Mode: Absolute
 func (cpu *CPU) ABS() uint8 {
-	lo := cpu.Read(cpu.pc)
+	lo := uint16(cpu.Read(cpu.pc))
 	cpu.pc++
-	hi := cpu.Read(cpu.pc)
+	hi := uint16(cpu.Read(cpu.pc))
 	cpu.pc++
 
-	cpu.addr_abs = uint16((hi << 8) | lo)
+	cpu.addr_abs = (hi << 8) | lo
 
 	return 0
 }
 
 // Address Mode: Absolute with X Offset
 func (cpu *CPU) ABX() uint8 {
-	lo := cpu.Read(cpu.pc)
+	lo := uint16(cpu.Read(cpu.pc))
 	cpu.pc++
-	hi := cpu.Read(cpu.pc)
+	hi := uint16(cpu.Read(cpu.pc))
 	cpu.pc++
 
-	cpu.addr_abs = uint16((hi << 8) | lo)
+	cpu.addr_abs = (hi << 8) | lo
 	cpu.addr_abs += uint16(cpu.x)
 
 	if (cpu.addr_abs & 0xFF00) != uint16(hi << 8) {
@@ -295,12 +295,12 @@ func (cpu *CPU) ABX() uint8 {
 
 // Address Mode: Absolute with Y Offset
 func (cpu *CPU) ABY() uint8 {
-	lo := cpu.Read(cpu.pc)
+	lo := uint16(cpu.Read(cpu.pc))
 	cpu.pc++
-	hi := cpu.Read(cpu.pc)
+	hi := uint16(cpu.Read(cpu.pc))
 	cpu.pc++
 
-	cpu.addr_abs = uint16((hi << 8) | lo)
+	cpu.addr_abs = (hi << 8) | lo
 	cpu.addr_abs += uint16(cpu.y)
 
 	if (cpu.addr_abs & 0xFF00) != uint16(hi << 8) {
@@ -312,17 +312,17 @@ func (cpu *CPU) ABY() uint8 {
 
 // Address Mode: Indirect
 func (cpu *CPU) IND() uint8 {
-	ptr_lo := cpu.Read(cpu.pc)
+	ptr_lo := uint16(cpu.Read(cpu.pc))
 	cpu.pc++
-	ptr_hi := cpu.Read(cpu.pc)
+	ptr_hi := uint16(cpu.Read(cpu.pc))
 	cpu.pc++
 
 	ptr := uint16((ptr_hi << 8) | ptr_lo)
 
 	if ptr_lo == 0x00FF {
-		cpu.addr_abs = uint16( (cpu.Read(ptr & 0xFF00) << 8) | cpu.Read(ptr + 0) )
+		cpu.addr_abs = (uint16(cpu.Read(ptr & 0xFF00)) << 8) | uint16(cpu.Read(ptr + 0))
 	} else {
-		cpu.addr_abs = uint16( (cpu.Read(ptr + 1) << 8) | cpu.Read(ptr + 0) )
+		cpu.addr_abs = (uint16(cpu.Read(ptr + 1)) << 8) | uint16(cpu.Read(ptr + 0))
 	}
 
 	return 0
@@ -333,10 +333,10 @@ func (cpu *CPU) IZX() uint8 {
 	t := uint16(cpu.Read(cpu.pc))
 	cpu.pc++
 
-	lo := cpu.Read(uint16(t + uint16(cpu.x)) & 0x00FF)
-	hi := cpu.Read(uint16(t + uint16(cpu.x) + 1) & 0x00FF)
+	lo := uint16(cpu.Read(uint16(t + uint16(cpu.x)) & 0x00FF))
+	hi := uint16(cpu.Read(uint16(t + uint16(cpu.x) + 1) & 0x00FF))
 
-	cpu.addr_abs = uint16((hi << 8) | lo)
+	cpu.addr_abs = (hi << 8) | lo
 
 	return 0
 }
@@ -346,10 +346,10 @@ func (cpu *CPU) IZY() uint8 {
 	t := uint16(cpu.Read(cpu.pc))
 	cpu.pc++
 
-	lo := cpu.Read(t & 0x00FF)
-	hi := cpu.Read((t + 1) & 0x00FF)
+	lo := uint16(cpu.Read(t & 0x00FF))
+	hi := uint16(cpu.Read((t + 1) & 0x00FF))
 
-	cpu.addr_abs = uint16((hi << 8) | lo)
+	cpu.addr_abs = (hi << 8) | lo
 	cpu.addr_abs += uint16(cpu.y)
 
 	if (cpu.addr_abs & 0xFF00) != uint16(hi << 8) {
@@ -995,23 +995,21 @@ func (cpu *CPU) XXX() uint8 {
 // Visualisation functions
 //
 func (cpu *CPU) PrintCPU() {
-	fmt.Println("-----------------------------------------------------------")
-	fmt.Printf("| %-12s | %-12s | %-25s |\n", "Field", "Value", "Description")
-	fmt.Println("-----------------------------------------------------------")
-	fmt.Printf("| %-12s | %-12p | %-25s |\n", "bus", cpu.bus, "Bus Pointer")
-	fmt.Printf("| %-12s | %-12X | %-25s |\n", "a", cpu.a, "Accumulator register")
-	fmt.Printf("| %-12s | %-12X | %-25s |\n", "x", cpu.x, "X register")
-	fmt.Printf("| %-12s | %-12X | %-25s |\n", "y", cpu.y, "Y register")
-	fmt.Printf("| %-12s | %-12X | %-25s |\n", "stkp", cpu.stkp, "Stack pointer")
-	fmt.Printf("| %-12s | %-12X | %-25s |\n", "pc", cpu.pc, "Program counter")
-	fmt.Printf("| %-12s | %-12b | %-25s |\n", "status", cpu.status, "Status register")
-	fmt.Printf("| %-12s | %-12X | %-25s |\n", "fetched", cpu.fetched, "Working input to ALU")
-	fmt.Printf("| %-12s | %-12X | %-25s |\n", "addr_abs", cpu.addr_abs, "")
-	fmt.Printf("| %-12s | %-12X | %-25s |\n", "addr_rel", cpu.addr_rel, "Relative address")
-	fmt.Printf("| %-12s | %-12X | %-25s |\n", "opcode", cpu.opcode, "")
-	fmt.Printf("| %-12s | %-12X | %-25s |\n", "cycles", cpu.cycles, "Cycles left")
-	fmt.Printf("| %-12s | %-12d | %-25s |\n", "clock_count", cpu.clock_count, "")
-	fmt.Println("-----------------------------------------------------------")
+	fmt.Println("\n------------------------------------------------------------")
+	fmt.Printf("| %-12s | %-12s | %-25s  |\n", "Field", "Value", "Description")
+	fmt.Println("------------------------------------------------------------")
+	fmt.Printf("| %-12s | $%-12.2X | %-25s |\n", "a", cpu.a, "Accumulator register")
+	fmt.Printf("| %-12s | $%-12.2X | %-25s |\n", "x", cpu.x, "X register")
+	fmt.Printf("| %-12s | $%-12.2X | %-25s |\n", "y", cpu.y, "Y register")
+	fmt.Printf("| %-12s | $%-12.4X | %-25s |\n", "stkp", cpu.stkp, "Stack pointer")
+	fmt.Printf("| %-12s | $%-12.4X | %-25s |\n", "pc", cpu.pc, "Program counter")
+	fmt.Printf("| %-12s | $%-12.2X | %-25s |\n", "fetched", cpu.fetched, "Working input to ALU")
+	fmt.Printf("| %-12s | $%-12.4X | %-25s |\n", "addr_abs", cpu.addr_abs, "Absolute address")
+	fmt.Printf("| %-12s | $%-12.4X | %-25s |\n", "addr_rel", cpu.addr_rel, "Relative address")
+	fmt.Printf("| %-12s | $%-12.2X | %-25s |\n", "opcode", cpu.opcode, "CPU opcode")
+	fmt.Printf("| %-12s | %-12d  | %-25s |\n", "cycles", cpu.cycles, "Cycles left")
+	fmt.Printf("| %-12s | %-12d  | %-25s |\n", "clock_count", cpu.clock_count, "Number of clocks")
+	fmt.Println("------------------------------------------------------------")
 }
 
 func (cpu *CPU) PrintStatusFlags() {
@@ -1030,7 +1028,7 @@ func (cpu *CPU) PrintStatusFlags() {
         {"N (Negative)", N},
     }
 
-    fmt.Println("--------------------------------------")
+    fmt.Println("\n--------------------------------------")
     fmt.Printf("| %-25s | %-6s |\n", "Flag", "Status")
     fmt.Println("--------------------------------------")
 
@@ -1047,7 +1045,7 @@ func (cpu *CPU) PrintStatusFlags() {
 }
 
 
-func (cpu *CPU) PrintRAM() {
-	cpu.bus.PrintRAM()
+func (cpu *CPU) PrintRAM(startPage int, pages int) {
+	cpu.bus.PrintRAM(startPage, pages)
 }
 
