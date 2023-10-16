@@ -98,7 +98,9 @@ func (cpu *CPU) Write(a uint16, d uint8) {
 
 
 // Updates the clock cycle
-func (cpu *CPU) Clock() {
+func (cpu *CPU) Clock() bool {
+	new_inst := cpu.cycles == 0
+
 	if cpu.cycles == 0 {
 		cpu.opcode = cpu.Read(cpu.pc)
 		cpu.pc++
@@ -113,6 +115,8 @@ func (cpu *CPU) Clock() {
 	}
 
 	cpu.cycles--
+
+	return new_inst
 }
 
 
