@@ -1000,7 +1000,7 @@ func (cpu *CPU) XXX() uint8 {
 //
 func (cpu *CPU) PrintCPU() {
 	fmt.Println("\n------------------------------------------------------------")
-	fmt.Printf("| %-12s | %-12s | %-25s  |\n", "Field", "Value", "Description")
+	fmt.Printf("| %-12s | %-13s | %-25s |\n", "Field", "Value", "Description")
 	fmt.Println("------------------------------------------------------------")
 	fmt.Printf("| %-12s | $%-12.2X | %-25s |\n", "a", cpu.a, "Accumulator register")
 	fmt.Printf("| %-12s | $%-12.2X | %-25s |\n", "x", cpu.x, "X register")
