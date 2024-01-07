@@ -26,6 +26,21 @@ func NewBus() *Bus {
 }
 
 
+func (b *Bus) Reset() {
+	b.cpu.reset()
+	b.nSystemClockCounter = 0
+}
+
+
+func (b *Bus) Clock() {
+	b.ppu.Clock()
+
+	if b.nSystemClockCounter % 3 == 0 {
+		b.cpu.Clock()
+	}
+}
+
+
 func (b *Bus) WriteBytes(addr uint16, data []uint8) {
 	for i, byteData := range data {
 		addr := addr + uint16(i)
