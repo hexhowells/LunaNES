@@ -105,12 +105,12 @@ func (cpu *CPU) ConnectBus(n *Bus) {
 
 
 func (cpu *CPU) Read(a uint16) uint8 {
-	return cpu.bus.Read(a, false)
+	return cpu.bus.CpuRead(a, false)
 }
 
 
 func (cpu *CPU) Write(a uint16, d uint8) {
-	cpu.bus.Write(a, d)
+	cpu.bus.CpuWrite(a, d)
 }
 
 
@@ -1084,7 +1084,7 @@ func (cpu *CPU) Disassemble(nStart uint16, nStop uint16) map[uint16]string {
 
 		sInst := "$" + fmt.Sprintf("%04x", addr) + ": "
 
-		opcode := cpu.bus.Read(uint16(addr), true)
+		opcode := cpu.bus.CpuRead(uint16(addr), true)
 		addr++
 		sInst += cpu.lookup[opcode].Name + " "
 
@@ -1092,60 +1092,60 @@ func (cpu *CPU) Disassemble(nStart uint16, nStop uint16) map[uint16]string {
 			case AddrModeIMP:
 				sInst += " {IMP}"
 			case AddrModeIMM:
-				value = cpu.bus.Read(uint16(addr), true)
+				value = cpu.bus.CpuRead(uint16(addr), true)
 				addr++
 				sInst += "#$" + fmt.Sprintf("%02x", value) + " {IMM}"
 			case AddrModeZP0:
-		        lo = cpu.bus.Read(uint16(addr), true)
+		        lo = cpu.bus.CpuRead(uint16(addr), true)
 		        addr++
 		        hi = 0x00
 		        sInst += "$" + fmt.Sprintf("%02x", lo) + " {ZP0}"
 		    case AddrModeZPX:
-		        lo = cpu.bus.Read(uint16(addr), true)
+		        lo = cpu.bus.CpuRead(uint16(addr), true)
 		        addr++
 		        hi = 0x00
 		        sInst += "$" + fmt.Sprintf("%02x", lo) + ", X {ZPX}"
 		    case AddrModeZPY:
-		        lo = cpu.bus.Read(uint16(addr), true)
+		        lo = cpu.bus.CpuRead(uint16(addr), true)
 		        addr++
 		        hi = 0x00
 		        sInst += "$" + fmt.Sprintf("%02x", lo) + ", Y {ZPY}"
 		    case AddrModeIZX:
-		        lo = cpu.bus.Read(uint16(addr), true)
+		        lo = cpu.bus.CpuRead(uint16(addr), true)
 		        addr++
 		        hi = 0x00
 		        sInst += "($" + fmt.Sprintf("%02x", lo) + ", X) {IZX}"
 		    case AddrModeIZY:
-		        lo = cpu.bus.Read(uint16(addr), true)
+		        lo = cpu.bus.CpuRead(uint16(addr), true)
 		        addr++
 		        hi = 0x00
 		        sInst += "($" + fmt.Sprintf("%02x", lo) + "), Y {IZY}"
 		    case AddrModeABS:
-		        lo = cpu.bus.Read(uint16(addr), true)
+		        lo = cpu.bus.CpuRead(uint16(addr), true)
 		        addr++
-		        hi = cpu.bus.Read(uint16(addr), true)
+		        hi = cpu.bus.CpuRead(uint16(addr), true)
 		        addr++
 		        sInst += "$" + fmt.Sprintf("%04x", uint16(hi)<<8|uint16(lo)) + " {ABS}"
 		    case AddrModeABX:
-		        lo = cpu.bus.Read(uint16(addr), true)
+		        lo = cpu.bus.CpuRead(uint16(addr), true)
 		        addr++
-		        hi = cpu.bus.Read(uint16(addr), true)
+		        hi = cpu.bus.CpuRead(uint16(addr), true)
 		        addr++
 		        sInst += "$" + fmt.Sprintf("%04x", uint16(hi)<<8|uint16(lo)) + ", X {ABX}"
 		    case AddrModeABY:
-		        lo = cpu.bus.Read(uint16(addr), true)
+		        lo = cpu.bus.CpuRead(uint16(addr), true)
 		        addr++
-		        hi = cpu.bus.Read(uint16(addr), true)
+		        hi = cpu.bus.CpuRead(uint16(addr), true)
 		        addr++
 		        sInst += "$" + fmt.Sprintf("%04x", uint16(hi)<<8|uint16(lo)) + ", Y {ABY}"
 		    case AddrModeIND:
-		        lo = cpu.bus.Read(uint16(addr), true)
+		        lo = cpu.bus.CpuRead(uint16(addr), true)
 		        addr++
-		        hi = cpu.bus.Read(uint16(addr), true)
+		        hi = cpu.bus.CpuRead(uint16(addr), true)
 		        addr++
 		        sInst += "($" + fmt.Sprintf("%04x", uint16(hi)<<8|uint16(lo)) + ") {IND}"
 		    case AddrModeREL:
-		        value = cpu.bus.Read(uint16(addr), true)
+		        value = cpu.bus.CpuRead(uint16(addr), true)
 		        addr++
 		        sInst += "$" + fmt.Sprintf("%02x", value) + " [$" + fmt.Sprintf("%04x", addr+uint32(value)) + "] {REL}"
 		    default:
