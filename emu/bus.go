@@ -38,6 +38,8 @@ func (b *Bus) Clock() {
 	if b.nSystemClockCounter % 3 == 0 {
 		b.cpu.Clock()
 	}
+
+	b.nSystemClockCounter++
 }
 
 
