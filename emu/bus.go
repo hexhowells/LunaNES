@@ -9,6 +9,7 @@ type Bus struct {
 	cpuRam [0x1FFF + 1]uint8
 	cpu CPU
 	ppu PPU
+	cart Cartridge
 	nSystemClockCounter uint32  // count of how many clock cycles have passed
 }
 
@@ -40,6 +41,12 @@ func (b *Bus) Clock() {
 	}
 
 	b.nSystemClockCounter++
+}
+
+
+func (b *Bus) InsertCartridge(cartridge *Cartridge) {
+	b.cart = cartridge
+	ppu.ConnectCartridge(cartridge)
 }
 
 
