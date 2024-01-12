@@ -62,7 +62,10 @@ func (b *Bus) WriteBytes(addr uint16, data []uint8) {
 
 
 func (b *Bus) CpuWrite(addr uint16, data uint8) {
-	if addr >= 0x0000 && addr <= 0x1FFF {
+	if b.cpu.cart.CpuWrite(addr, data) {
+		// cartridge address range
+	}
+	else if addr >= 0x0000 && addr <= 0x1FFF {
 		b.cpuRam[addr & 0x07FF] = data
 	} else if addr >= 0x2000 && addr <= 0x3FFF {
 		ppu.CpuWrite(addr & 0x07FF, data)
@@ -73,7 +76,10 @@ func (b *Bus) CpuWrite(addr uint16, data uint8) {
 func (b *Bus) CpuRead(addr uint16, bReadOnly bool) uint8 {
 	data := uint8(0x00)
 
-	if addr >= 0x0000 && addr <= 0x1FFF {
+	if b.cpu.cart.CpuWrite(addr, data) {
+		// cartridge address range
+	}
+	else if addr >= 0x0000 && addr <= 0x1FFF {
 		data = b.cpuRam[addr & 0x07FF]
 	} else if addr >= 0x2000 && addr <= 0x3FFF {
 		ppu.CpuRead(addr & 0x07FF, bReadOnly)
