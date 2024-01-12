@@ -8,7 +8,7 @@ type Cartridge struct {
 	numChrBanks uint8  // how many banks of memory for the characters
 	header sHeader  // INES file header
 	mapper Mapper  // onboard mapper
-	imageValid boolean  // 
+	imageValid bool  // 
 }
 
 
@@ -102,7 +102,7 @@ func (cart *Cartridge) ImageValid() {
 }
 
 
-func (cart *Cartridge) CpuRead(addr uint16, &data uint8) boolean {
+func (cart *Cartridge) CpuRead(addr uint16, &data uint8) bool {
 	mapperAddr := uint32(0)
 
 	if cart.mapper.CpuMapRead(addr, mappedAddr) {
@@ -114,7 +114,7 @@ func (cart *Cartridge) CpuRead(addr uint16, &data uint8) boolean {
 }
 
 
-func (cart *Cartridge) CpuWrite(addr uint16, data uint8) boolean {
+func (cart *Cartridge) CpuWrite(addr uint16, data uint8) bool {
 	mapperAddr := uint32(0)
 
 	if cart.mapper.CpuMapWrite(addr, mappedAddr) {
@@ -126,7 +126,7 @@ func (cart *Cartridge) CpuWrite(addr uint16, data uint8) boolean {
 }
 
 
-func (cart *Cartridge) PpuRead(addr uint16, &data uint8) boolean {
+func (cart *Cartridge) PpuRead(addr uint16, &data uint8) bool {
 	mapperAddr := uint32(0)
 
 	if cart.mapper.PpuMapRead(addr, mappedAddr) {
@@ -138,7 +138,7 @@ func (cart *Cartridge) PpuRead(addr uint16, &data uint8) boolean {
 }
 
 
-func (cart *Cartridge) PpuWrite(addr uint16, data uint8) boolean {
+func (cart *Cartridge) PpuWrite(addr uint16, data uint8) bool {
 	mapperAddr := uint32(0)
 
 	if cart.mapper.PpuMapWrite(addr, mappedAddr) {
