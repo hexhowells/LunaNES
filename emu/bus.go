@@ -76,7 +76,7 @@ func (b *Bus) CpuWrite(addr uint16, data uint8) {
 func (b *Bus) CpuRead(addr uint16, bReadOnly bool) uint8 {
 	data := uint8(0x00)
 
-	if b.cpu.cart.CpuWrite(addr, data) {
+	if b.cpu.cart.CpuRead(addr, data) {
 		// cartridge address range
 	}
 	else if addr >= 0x0000 && addr <= 0x1FFF {
