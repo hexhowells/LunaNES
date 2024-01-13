@@ -1,5 +1,19 @@
 package emu
 
+import (
+	"os"
+	"encoding/binary"
+)
+
+
+const (
+	HORIZONTAL = iota
+	VERTICAL
+	ONESCREEN_LO
+	ONESCREEN_HI
+)
+
+
 type Cartridge struct {
 	prgMemory []uint8  // program memory
 	chrMemory []uint8  // character memory
@@ -7,8 +21,9 @@ type Cartridge struct {
 	numPrgBanks uint8  // how many banks of memory for the program
 	numChrBanks uint8  // how many banks of memory for the characters
 	header sHeader  // INES file header
-	mapper Mapper  // onboard mapper
+	mapper *Mapper000  // onboard mapper
 	imageValid bool  // 
+	mirror int
 }
 
 
@@ -26,7 +41,7 @@ type sHeader struct {
 
 
 func NewCartridge(filename string) *Cartridge {
-	cart :=- Cartridge{}
+	cart := Cartridge{}
 	cart.mapperID = 0
 	cart.numPrgBanks = 0
 	cart.numChrBanks = 0
@@ -66,7 +81,7 @@ func NewCartridge(filename string) *Cartridge {
 	if nFileType == 1 {
 		// Load program memory
 		cart.numPrgBanks = cart.header.prgRomChunks
-		cart.prgMemory = make([]uint8, cart.numPrgBanks * 16384)
+		cart.prgMemory = make([]uint8, uint16(cart.numPrgBanks) * 16384)
 		_, err = file.Read(cart.prgMemory)
 		if err != nil {
 			return nil
@@ -74,7 +89,7 @@ func NewCartridge(filename string) *Cartridge {
 
 		// Load character memory
 		cart.numChrBanks = cart.header.chrRomChunks
-		cart.chrMemory = make([]uint8, cart.numChrBanks * 8192)
+		cart.chrMemory = make([]uint8, uint16(cart.numChrBanks) * 8192)
 		_, err = file.Read(cart.chrMemory) //
 		if err != nil {
 			return nil
@@ -83,7 +98,7 @@ func NewCartridge(filename string) *Cartridge {
 		// Load the mapper
 		switch cart.mapperID {
 			case 0:
-				cart.mapper = NewMapper(cart.numPrgBanks, cart.numChrBanks)
+				cart.mapper = NewMapper_000(cart.numPrgBanks, cart.numChrBanks)
 		}
 
 		cart.imageValid = true
@@ -97,16 +112,16 @@ func NewCartridge(filename string) *Cartridge {
 }
 
 
-func (cart *Cartridge) ImageValid() {
+func (cart *Cartridge) ImageValid() bool {
 	return cart.imageValid
 }
 
 
-func (cart *Cartridge) CpuRead(addr uint16, &data uint8) bool {
+func (cart *Cartridge) CpuRead(addr uint16, data *uint8) bool {
 	mappedAddr := uint32(0)
 
-	if cart.mapper.CpuMapRead(addr, mappedAddr) {
-		data := cart.prgMemory[mappedAddr]
+	if cart.mapper.CpuMapRead(addr, &mappedAddr) {
+		*data = cart.prgMemory[mappedAddr]
 		return true
 	} else {
 		return false
@@ -117,7 +132,7 @@ func (cart *Cartridge) CpuRead(addr uint16, &data uint8) bool {
 func (cart *Cartridge) CpuWrite(addr uint16, data uint8) bool {
 	mappedAddr := uint32(0)
 
-	if cart.mapper.CpuMapWrite(addr, mappedAddr) {
+	if cart.mapper.CpuMapWrite(addr, &mappedAddr) {
 		cart.prgMemory[mappedAddr] = data
 		return true
 	} else {
@@ -126,11 +141,11 @@ func (cart *Cartridge) CpuWrite(addr uint16, data uint8) bool {
 }
 
 
-func (cart *Cartridge) PpuRead(addr uint16, &data uint8) bool {
+func (cart *Cartridge) PpuRead(addr uint16, data *uint8) bool {
 	mappedAddr := uint32(0)
 
-	if cart.mapper.PpuMapRead(addr, mappedAddr) {
-		data := cart.prgMemory[mappedAddr]
+	if cart.mapper.PpuMapRead(addr, &mappedAddr) {
+		*data = cart.prgMemory[mappedAddr]
 		return true
 	} else {
 		return false
@@ -141,7 +156,7 @@ func (cart *Cartridge) PpuRead(addr uint16, &data uint8) bool {
 func (cart *Cartridge) PpuWrite(addr uint16, data uint8) bool {
 	mappedAddr := uint32(0)
 
-	if cart.mapper.PpuMapWrite(addr, mappedAddr) {
+	if cart.mapper.PpuMapWrite(addr, &mappedAddr) {
 		cart.prgMemory[mappedAddr] = data
 		return true
 	} else {
