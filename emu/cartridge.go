@@ -103,7 +103,7 @@ func (cart *Cartridge) ImageValid() {
 
 
 func (cart *Cartridge) CpuRead(addr uint16, &data uint8) bool {
-	mapperAddr := uint32(0)
+	mappedAddr := uint32(0)
 
 	if cart.mapper.CpuMapRead(addr, mappedAddr) {
 		data := cart.prgMemory[mappedAddr]
@@ -115,7 +115,7 @@ func (cart *Cartridge) CpuRead(addr uint16, &data uint8) bool {
 
 
 func (cart *Cartridge) CpuWrite(addr uint16, data uint8) bool {
-	mapperAddr := uint32(0)
+	mappedAddr := uint32(0)
 
 	if cart.mapper.CpuMapWrite(addr, mappedAddr) {
 		cart.prgMemory[mappedAddr] = data
@@ -127,7 +127,7 @@ func (cart *Cartridge) CpuWrite(addr uint16, data uint8) bool {
 
 
 func (cart *Cartridge) PpuRead(addr uint16, &data uint8) bool {
-	mapperAddr := uint32(0)
+	mappedAddr := uint32(0)
 
 	if cart.mapper.PpuMapRead(addr, mappedAddr) {
 		data := cart.prgMemory[mappedAddr]
@@ -139,7 +139,7 @@ func (cart *Cartridge) PpuRead(addr uint16, &data uint8) bool {
 
 
 func (cart *Cartridge) PpuWrite(addr uint16, data uint8) bool {
-	mapperAddr := uint32(0)
+	mappedAddr := uint32(0)
 
 	if cart.mapper.PpuMapWrite(addr, mappedAddr) {
 		cart.prgMemory[mappedAddr] = data
