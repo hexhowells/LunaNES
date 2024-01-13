@@ -4,6 +4,9 @@ type PPU struct {
 	cart Cartridge
 	nameTable [2][1024]uint8
 	paletteTable [32]uint8
+	scanline int16
+	cycle int16
+	frameComplete bool
 }
 
 
@@ -59,7 +62,7 @@ func (p *PPU) PpuRead(addr uint16, bReadOnly bool) uint8 {
 	data := uint8(0x00)
 	addr &= 0x3FFF
 
-	if p.cart.PpuRead(addr, data) {
+	if p.cart.PpuRead(addr, &data) {
 		// cartridge address range
 	}
 
@@ -77,5 +80,20 @@ func (p *PPU) PpuWrite(addr uint16, data uint8) {
 
 
 func (p *PPU) ConnectCartridge(cartridge *Cartridge) {
-	p.cart = cartridge
+	p.cart = *cartridge
+}
+
+
+func (p *PPU) Clock() {
+	p.cycle++
+
+	if p.cycle >= 341 {
+		p.cycle = 0
+		p.scanline++
+
+		if p.scanline >= 261 {
+			p.scanline = -1
+			p.frameComplete = true
+		}
+	}
 }

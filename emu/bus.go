@@ -28,7 +28,7 @@ func NewBus() *Bus {
 
 
 func (b *Bus) Reset() {
-	b.cpu.reset()
+	b.cpu.Reset()
 	b.nSystemClockCounter = 0
 }
 
@@ -45,8 +45,8 @@ func (b *Bus) Clock() {
 
 
 func (b *Bus) InsertCartridge(cartridge *Cartridge) {
-	b.cart = cartridge
-	ppu.ConnectCartridge(cartridge)
+	b.cart = *cartridge
+	b.ppu.ConnectCartridge(cartridge)
 }
 
 
@@ -62,13 +62,12 @@ func (b *Bus) WriteBytes(addr uint16, data []uint8) {
 
 
 func (b *Bus) CpuWrite(addr uint16, data uint8) {
-	if b.cpu.cart.CpuWrite(addr, data) {
+	if b.cart.CpuWrite(addr, data) {
 		// cartridge address range
-	}
-	else if addr >= 0x0000 && addr <= 0x1FFF {
+	} else if addr >= 0x0000 && addr <= 0x1FFF {
 		b.cpuRam[addr & 0x07FF] = data
 	} else if addr >= 0x2000 && addr <= 0x3FFF {
-		ppu.CpuWrite(addr & 0x07FF, data)
+		b.ppu.CpuWrite(addr & 0x07FF, data)
 	}
 }
 
@@ -76,13 +75,12 @@ func (b *Bus) CpuWrite(addr uint16, data uint8) {
 func (b *Bus) CpuRead(addr uint16, bReadOnly bool) uint8 {
 	data := uint8(0x00)
 
-	if b.cpu.cart.CpuRead(addr, data) {
+	if b.cart.CpuRead(addr, &data) {
 		// cartridge address range
-	}
-	else if addr >= 0x0000 && addr <= 0x1FFF {
+	} else if addr >= 0x0000 && addr <= 0x1FFF {
 		data = b.cpuRam[addr & 0x07FF]
 	} else if addr >= 0x2000 && addr <= 0x3FFF {
-		ppu.CpuRead(addr & 0x07FF, bReadOnly)
+		b.ppu.CpuRead(addr & 0x07FF, bReadOnly)
 	}
 
 	return data
