@@ -145,7 +145,7 @@ func (cart *Cartridge) PpuRead(addr uint16, data *uint8) bool {
 	mappedAddr := uint32(0)
 
 	if cart.mapper.PpuMapRead(addr, &mappedAddr) {
-		*data = cart.prgMemory[mappedAddr]
+		*data = cart.chrMemory[mappedAddr]
 		return true
 	} else {
 		return false
@@ -157,7 +157,7 @@ func (cart *Cartridge) PpuWrite(addr uint16, data uint8) bool {
 	mappedAddr := uint32(0)
 
 	if cart.mapper.PpuMapWrite(addr, &mappedAddr) {
-		cart.prgMemory[mappedAddr] = data
+		cart.chrMemory[mappedAddr] = data
 		return true
 	} else {
 		return false
