@@ -50,6 +50,7 @@ func (b *Bus) InsertCartridge(cartridge *Cartridge) {
 }
 
 
+// Writes a chunk of bytes to the bus
 func (b *Bus) WriteBytes(addr uint16, data []uint8) {
 	for i, byteData := range data {
 		addr := addr + uint16(i)
@@ -61,6 +62,7 @@ func (b *Bus) WriteBytes(addr uint16, data []uint8) {
 }
 
 
+// All write operations sent out to the bus get processed here
 func (b *Bus) CpuWrite(addr uint16, data uint8) {
 	if b.cart.CpuWrite(addr, data) {
 		// cartridge address range
@@ -72,6 +74,7 @@ func (b *Bus) CpuWrite(addr uint16, data uint8) {
 }
 
 
+// All read operations sent out to the bus get processed here
 func (b *Bus) CpuRead(addr uint16, bReadOnly bool) uint8 {
 	data := uint8(0x00)
 
@@ -87,6 +90,8 @@ func (b *Bus) CpuRead(addr uint16, bReadOnly bool) uint8 {
 }
 
 
+// Prints out the CPU RAM
+// RAM get printed out in pages
 func (b *Bus) PrintRAM(startPage int, pages int) {
 	const bytesPerRow = 16
 
