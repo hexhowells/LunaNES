@@ -57,7 +57,7 @@ func (b *Bus) WriteBytes(addr uint16, data []uint8) {
 		if addr > 0x1FFF {
 			break // Stop writing if we reach the end of RAM
 		}
-		b.CpuWrite(addr & 0x07FF, byteData)
+		b.CpuWrite(addr, byteData)
 	}
 }
 
