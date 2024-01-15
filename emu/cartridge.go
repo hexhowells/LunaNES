@@ -3,6 +3,7 @@ package emu
 import (
 	"os"
 	"encoding/binary"
+	"log"
 )
 
 
@@ -28,15 +29,15 @@ type Cartridge struct {
 
 
 type sHeader struct {
-	name [4]byte
-	prgRomChunks uint8
-	chrRomChunks uint8
-	mapper1 uint8
-	mapper2 uint8
-	prgRamSize uint8
-	tvSystem1 uint8
-	tvSystem2 uint8
-	unused [5]byte
+	Name [4]byte
+	PrgRomChunks uint8
+	ChrRomChunks uint8
+	Mapper1 uint8
+	Mapper2 uint8
+	PrgRamSize uint8
+	TvSystem1 uint8
+	TvSystem2 uint8
+	Unused [5]byte
 }
 
 
@@ -48,25 +49,29 @@ func NewCartridge(filename string) *Cartridge {
 
 	file, err := os.Open(filename)
 	if err != nil {
+		log.Println("Error: could not open ROM file")
+		log.Println(err)
 		return nil
 	}
 	defer file.Close()
 
 	// Read file header
-	err = binary.Read(file, binary.LittleEndian, cart.header)
+	err = binary.Read(file, binary.LittleEndian, &cart.header)
 	if err != nil {
+		log.Println("Error: could not read ROM file header")
+		log.Println(err)
 		return nil
 	}
 
 	// Skip training info if present
-	if cart.header.mapper1 & 0x04 != 0 {
+	if cart.header.Mapper1 & 0x04 != 0 {
 		file.Seek(512, 1)
 	}
 
 	// Determine the mapper ID
-	cart.mapperID = ((cart.header.mapper2 >> 4) << 4) | (cart.header.mapper1 >> 4)
+	cart.mapperID = ((cart.header.Mapper2 >> 4) << 4) | (cart.header.Mapper1 >> 4)
 
-	if cart.header.mapper1 & 0x01 != 0 {
+	if cart.header.Mapper1 & 0x01 != 0 {
 		cart.mirror = 1  // vertical
 	} else {
 		cart.mirror = 0  // horizontal
@@ -80,18 +85,22 @@ func NewCartridge(filename string) *Cartridge {
 
 	if nFileType == 1 {
 		// Load program memory
-		cart.numPrgBanks = cart.header.prgRomChunks
+		cart.numPrgBanks = cart.header.PrgRomChunks
 		cart.prgMemory = make([]uint8, uint16(cart.numPrgBanks) * 16384)
 		_, err = file.Read(cart.prgMemory)
 		if err != nil {
+			log.Println("Error: could not read program memory from ROM")
+			log.Println(err)
 			return nil
 		}
 
 		// Load character memory
-		cart.numChrBanks = cart.header.chrRomChunks
+		cart.numChrBanks = cart.header.ChrRomChunks
 		cart.chrMemory = make([]uint8, uint16(cart.numChrBanks) * 8192)
 		_, err = file.Read(cart.chrMemory) //
 		if err != nil {
+			log.Println("Error: could not read character memory from ROM")
+			log.Println(err)
 			return nil
 		}
 
