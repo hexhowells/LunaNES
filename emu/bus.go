@@ -111,10 +111,10 @@ func (b *Bus) PrintRAM(startPage int, pages int) {
 		ascii := ""
 		for j := 0; j < bytesPerRow; j++ {
 			// Print byte
-			fmt.Printf(" %02X", b.cpuRam[i+j])
+			fmt.Printf(" %02X", b.CpuRead(uint16(i+j), true))
 			// Collect ASCII representation, if printable
-			if b.cpuRam[i+j] >= 0x20 && b.cpuRam[i+j] <= 0x7E {
-				ascii += string(b.cpuRam[i+j])
+			if b.CpuRead(uint16(i+j), true) >= 0x20 && b.CpuRead(uint16(i+j), true) <= 0x7E {
+				ascii += string(b.CpuRead(uint16(i+j), true))
 			} else {
 				ascii += "."
 			}
