@@ -23,21 +23,21 @@ type Cartridge struct {
 	numChrBanks uint8  // how many banks of memory for the characters
 	header sHeader  // INES file header
 	mapper *Mapper000  // onboard mapper
-	imageValid bool  // 
+	imageValid bool
 	mirror int
 }
 
 
 type sHeader struct {
-	Name [4]byte
-	PrgRomChunks uint8
-	ChrRomChunks uint8
+	Name [4]byte  // Header name
+	PrgRomChunks uint8  // number of program rom pages
+	ChrRomChunks uint8  // number of character rom pages
 	Mapper1 uint8
 	Mapper2 uint8
-	PrgRamSize uint8
-	TvSystem1 uint8
-	TvSystem2 uint8
-	Unused [5]byte
+	PrgRamSize uint8  // rarely used
+	TvSystem1 uint8  // rarely used
+	TvSystem2 uint8  // rarely used
+	Unused [5]byte  // padding
 }
 
 
