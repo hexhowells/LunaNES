@@ -24,12 +24,12 @@ const (
 
 type CPU struct {
 	bus *Bus
-	a uint8  // Accumulator register
-	x uint8  // X register
-	y uint8  // Y register
-	stkp uint8  // Stack pointer
-	pc uint16  // Program counter
-	status uint8  // Status register
+	A uint8  // Accumulator register
+	X uint8  // X register
+	Y uint8  // Y register
+	Stkp uint8  // Stack pointer
+	Pc uint16  // Program counter
+	Status uint8  // Status register
 	fetched uint8  // The working input value to the ALU
 	addr_abs uint16
 	addr_rel uint16  // Relative address - used for jump instructions
@@ -63,12 +63,12 @@ const (
 
 func NewCPU() *CPU {
 	cpu := CPU{}
-	cpu.a = 0x00
-	cpu.x = 0x00
-	cpu.y = 0x00
-	cpu.stkp = 0x00
-	cpu.pc = 0x0000
-	cpu.status = 0x00
+	cpu.A = 0x00
+	cpu.X = 0x00
+	cpu.Y = 0x00
+	cpu.Stkp = 0x00
+	cpu.Pc = 0x0000
+	cpu.Status = 0x00
 
 	cpu.fetched = 0x00
 	cpu.addr_abs = 0x0000
@@ -104,13 +104,13 @@ func (cpu *CPU) ConnectBus(n *Bus) {
 }
 
 
-func (cpu *CPU) Read(a uint16) uint8 {
-	return cpu.bus.CpuRead(a, false)
+func (cpu *CPU) Read(A uint16) uint8 {
+	return cpu.bus.CpuRead(A, false)
 }
 
 
-func (cpu *CPU) Write(a uint16, d uint8) {
-	cpu.bus.CpuWrite(a, d)
+func (cpu *CPU) Write(A uint16, d uint8) {
+	cpu.bus.CpuWrite(A, d)
 }
 
 
@@ -119,8 +119,8 @@ func (cpu *CPU) Clock() bool {
 	new_inst := cpu.cycles == 0
 
 	if cpu.cycles == 0 {
-		cpu.opcode = cpu.Read(cpu.pc)
-		cpu.pc++
+		cpu.opcode = cpu.Read(cpu.Pc)
+		cpu.Pc++
 
 		cpu.cycles = cpu.lookup[cpu.opcode].Cycles
 
@@ -138,7 +138,7 @@ func (cpu *CPU) Clock() bool {
 
 
 func (cpu *CPU) GetFlag(flag uint8) uint8 {
-	if (cpu.status & flag) > 0 {
+	if (cpu.Status & flag) > 0 {
 		return 1
 	}
 	return 0
@@ -147,26 +147,26 @@ func (cpu *CPU) GetFlag(flag uint8) uint8 {
 
 func (cpu *CPU) SetFlag(flag uint8, v bool) {
 	if v {
-		cpu.status |= flag
+		cpu.Status |= flag
 	} else {
-		cpu.status &= ^flag
+		cpu.Status &= ^flag
 	}
 }
 
 
 // Reset interrupt
 func (cpu *CPU) Reset() {
-	cpu.a = 0
-	cpu.x = 0
-	cpu.y = 0
-	cpu.stkp = 0xFD
-	cpu.status = 0x00 | U
+	cpu.A = 0
+	cpu.X = 0
+	cpu.Y = 0
+	cpu.Stkp = 0xFD
+	cpu.Status = 0x00 | U
 
 	cpu.addr_abs = 0xFFFC
 	lo := uint16(cpu.Read(cpu.addr_abs + 0))
 	hi := uint16(cpu.Read(cpu.addr_abs + 1))
 
-	cpu.pc = (hi << 8) | lo
+	cpu.Pc = (hi << 8) | lo
 
 	cpu.addr_rel = 0x0000
 	cpu.addr_abs = 0x0000
@@ -179,21 +179,21 @@ func (cpu *CPU) Reset() {
 // Interrupt request
 func (cpu *CPU) IRQ() {
 	if cpu.GetFlag(I) == 0 {
-		cpu.Write(0x0100 + uint16(cpu.stkp), uint8((cpu.pc >> 8) & 0x00FF))
-		cpu.stkp--
-		cpu.Write(0x0100 + uint16(cpu.stkp), uint8(cpu.pc & 0x00FF))
-		cpu.stkp--
+		cpu.Write(0x0100 + uint16(cpu.Stkp), uint8((cpu.Pc >> 8) & 0x00FF))
+		cpu.Stkp--
+		cpu.Write(0x0100 + uint16(cpu.Stkp), uint8(cpu.Pc & 0x00FF))
+		cpu.Stkp--
 
 		cpu.SetFlag(B, false)
 		cpu.SetFlag(U, true)
 		cpu.SetFlag(I, true)
-		cpu.Write(0x0100 + uint16(cpu.stkp), cpu.status)
-		cpu.stkp--
+		cpu.Write(0x0100 + uint16(cpu.Stkp), cpu.Status)
+		cpu.Stkp--
 
 		cpu.addr_abs = 0xFFFE
 		lo := uint16(cpu.Read(cpu.addr_abs + 0))
 		hi := uint16(cpu.Read(cpu.addr_abs + 1))
-		cpu.pc = (hi << 8) | lo
+		cpu.Pc = (hi << 8) | lo
 
 		cpu.cycles = 7
 	}
@@ -202,21 +202,21 @@ func (cpu *CPU) IRQ() {
 
 // Non-Maskable interrupt request
 func (cpu *CPU) NMI() {
-	cpu.Write(0x0100 + uint16(cpu.stkp), uint8((cpu.pc >> 8) & 0x00FF))
-	cpu.stkp--
-	cpu.Write(0x0100 + uint16(cpu.stkp), uint8(cpu.pc & 0x00FF))
-	cpu.stkp--
+	cpu.Write(0x0100 + uint16(cpu.Stkp), uint8((cpu.Pc >> 8) & 0x00FF))
+	cpu.Stkp--
+	cpu.Write(0x0100 + uint16(cpu.Stkp), uint8(cpu.Pc & 0x00FF))
+	cpu.Stkp--
 
 	cpu.SetFlag(B, false)
 	cpu.SetFlag(U, true)
 	cpu.SetFlag(I, true)
-	cpu.Write(0x0100 + uint16(cpu.stkp), cpu.status)
-	cpu.stkp--
+	cpu.Write(0x0100 + uint16(cpu.Stkp), cpu.Status)
+	cpu.Stkp--
 
 	cpu.addr_abs = 0xFFFA
 	lo := uint16(cpu.Read(cpu.addr_abs + 0))
 	hi := uint16(cpu.Read(cpu.addr_abs + 1))
-	cpu.pc = (hi << 8) | lo
+	cpu.Pc = (hi << 8) | lo
 
 	cpu.cycles = 8
 }
@@ -234,23 +234,23 @@ func (cpu *CPU) Fetch() uint8 {
 
 // Address Mode: Implied
 func (cpu *CPU) IMP() uint8 {
-	cpu.fetched = cpu.a
+	cpu.fetched = cpu.A
 
 	return 0
 }
 
 // Address Mode: Immediate
 func (cpu *CPU) IMM() uint8 {
-	cpu.addr_abs = cpu.pc
-	cpu.pc++
+	cpu.addr_abs = cpu.Pc
+	cpu.Pc++
 
 	return 0
 }
 
 // Address Mode: Zero Page
 func (cpu *CPU) ZP0() uint8 {
-	cpu.addr_abs = uint16(cpu.Read(cpu.pc))
-	cpu.pc++
+	cpu.addr_abs = uint16(cpu.Read(cpu.Pc))
+	cpu.Pc++
 	cpu.addr_abs &= 0x00FF
 
 	return 0
@@ -258,8 +258,8 @@ func (cpu *CPU) ZP0() uint8 {
 
 // Address Mode: Zero Page with X Offset
 func (cpu *CPU) ZPX() uint8 {
-	cpu.addr_abs = uint16(cpu.Read(cpu.pc) + cpu.x)
-	cpu.pc++
+	cpu.addr_abs = uint16(cpu.Read(cpu.Pc) + cpu.X)
+	cpu.Pc++
 	cpu.addr_abs &= 0x00FF
 
 	return 0
@@ -267,8 +267,8 @@ func (cpu *CPU) ZPX() uint8 {
 
 // Address Mode: Zero Page with Y Offset
 func (cpu *CPU) ZPY() uint8 {
-	cpu.addr_abs = uint16(cpu.Read(cpu.pc) + cpu.y)
-	cpu.pc++
+	cpu.addr_abs = uint16(cpu.Read(cpu.Pc) + cpu.Y)
+	cpu.Pc++
 	cpu.addr_abs &= 0x00FF
 
 	return 0
@@ -276,8 +276,8 @@ func (cpu *CPU) ZPY() uint8 {
 
 // Address Mode: Relative
 func (cpu *CPU) REL() uint8 {
-	cpu.addr_rel = uint16(cpu.Read(cpu.pc))
-	cpu.pc++
+	cpu.addr_rel = uint16(cpu.Read(cpu.Pc))
+	cpu.Pc++
 	if (cpu.addr_rel & 0x80) != 0 {
 		cpu.addr_rel |= 0xFF00
 	}
@@ -287,10 +287,10 @@ func (cpu *CPU) REL() uint8 {
 
 // Address Mode: Absolute
 func (cpu *CPU) ABS() uint8 {
-	lo := uint16(cpu.Read(cpu.pc))
-	cpu.pc++
-	hi := uint16(cpu.Read(cpu.pc))
-	cpu.pc++
+	lo := uint16(cpu.Read(cpu.Pc))
+	cpu.Pc++
+	hi := uint16(cpu.Read(cpu.Pc))
+	cpu.Pc++
 
 	cpu.addr_abs = (hi << 8) | lo
 
@@ -299,13 +299,13 @@ func (cpu *CPU) ABS() uint8 {
 
 // Address Mode: Absolute with X Offset
 func (cpu *CPU) ABX() uint8 {
-	lo := uint16(cpu.Read(cpu.pc))
-	cpu.pc++
-	hi := uint16(cpu.Read(cpu.pc))
-	cpu.pc++
+	lo := uint16(cpu.Read(cpu.Pc))
+	cpu.Pc++
+	hi := uint16(cpu.Read(cpu.Pc))
+	cpu.Pc++
 
 	cpu.addr_abs = (hi << 8) | lo
-	cpu.addr_abs += uint16(cpu.x)
+	cpu.addr_abs += uint16(cpu.X)
 
 	if (cpu.addr_abs & 0xFF00) != uint16(hi << 8) {
 		return 1
@@ -316,13 +316,13 @@ func (cpu *CPU) ABX() uint8 {
 
 // Address Mode: Absolute with Y Offset
 func (cpu *CPU) ABY() uint8 {
-	lo := uint16(cpu.Read(cpu.pc))
-	cpu.pc++
-	hi := uint16(cpu.Read(cpu.pc))
-	cpu.pc++
+	lo := uint16(cpu.Read(cpu.Pc))
+	cpu.Pc++
+	hi := uint16(cpu.Read(cpu.Pc))
+	cpu.Pc++
 
 	cpu.addr_abs = (hi << 8) | lo
-	cpu.addr_abs += uint16(cpu.y)
+	cpu.addr_abs += uint16(cpu.Y)
 
 	if (cpu.addr_abs & 0xFF00) != uint16(hi << 8) {
 		return 1
@@ -333,10 +333,10 @@ func (cpu *CPU) ABY() uint8 {
 
 // Address Mode: Indirect
 func (cpu *CPU) IND() uint8 {
-	ptr_lo := uint16(cpu.Read(cpu.pc))
-	cpu.pc++
-	ptr_hi := uint16(cpu.Read(cpu.pc))
-	cpu.pc++
+	ptr_lo := uint16(cpu.Read(cpu.Pc))
+	cpu.Pc++
+	ptr_hi := uint16(cpu.Read(cpu.Pc))
+	cpu.Pc++
 
 	ptr := uint16((ptr_hi << 8) | ptr_lo)
 
@@ -351,11 +351,11 @@ func (cpu *CPU) IND() uint8 {
 
 // Address Mode: Indirect X
 func (cpu *CPU) IZX() uint8 {
-	t := uint16(cpu.Read(cpu.pc))
-	cpu.pc++
+	t := uint16(cpu.Read(cpu.Pc))
+	cpu.Pc++
 
-	lo := uint16(cpu.Read(uint16(t + uint16(cpu.x)) & 0x00FF))
-	hi := uint16(cpu.Read(uint16(t + uint16(cpu.x) + 1) & 0x00FF))
+	lo := uint16(cpu.Read(uint16(t + uint16(cpu.X)) & 0x00FF))
+	hi := uint16(cpu.Read(uint16(t + uint16(cpu.X) + 1) & 0x00FF))
 
 	cpu.addr_abs = (hi << 8) | lo
 
@@ -364,14 +364,14 @@ func (cpu *CPU) IZX() uint8 {
 
 // Address Mode: Indirect Y
 func (cpu *CPU) IZY() uint8 {
-	t := uint16(cpu.Read(cpu.pc))
-	cpu.pc++
+	t := uint16(cpu.Read(cpu.Pc))
+	cpu.Pc++
 
 	lo := uint16(cpu.Read(t & 0x00FF))
 	hi := uint16(cpu.Read((t + 1) & 0x00FF))
 
 	cpu.addr_abs = (hi << 8) | lo
-	cpu.addr_abs += uint16(cpu.y)
+	cpu.addr_abs += uint16(cpu.Y)
 
 	if (cpu.addr_abs & 0xFF00) != uint16(hi << 8) {
 		return 1
@@ -387,15 +387,15 @@ func (cpu *CPU) IZY() uint8 {
 func (cpu *CPU) ADC() uint8 {
 	cpu.Fetch()
 
-	temp := uint16(cpu.a) + uint16(cpu.fetched) + uint16(cpu.GetFlag(C))
+	temp := uint16(cpu.A) + uint16(cpu.fetched) + uint16(cpu.GetFlag(C))
 
 	cpu.SetFlag(C, temp > 255)
 	cpu.SetFlag(Z, (temp & 0x00FF) == 0)
-	signed_overflow_flag := (^(uint16(cpu.a) ^ uint16(cpu.fetched)) & (uint16(cpu.a) ^ uint16(temp))) & 0x0080
+	signed_overflow_flag := (^(uint16(cpu.A) ^ uint16(cpu.fetched)) & (uint16(cpu.A) ^ uint16(temp))) & 0x0080
 	cpu.SetFlag(V, signed_overflow_flag != 0)
 	cpu.SetFlag(N, (temp & 0x80) != 0)
 
-	cpu.a = uint8(temp & 0x00FF)
+	cpu.A = uint8(temp & 0x00FF)
 
 	return 1
 }
@@ -405,15 +405,15 @@ func (cpu *CPU) SBC() uint8 {
 	cpu.Fetch()
 
 	value := uint16(cpu.fetched) ^ 0x00FF
-	temp := uint16(cpu.a) + value + uint16(cpu.GetFlag(C))
+	temp := uint16(cpu.A) + value + uint16(cpu.GetFlag(C))
 
 	cpu.SetFlag(C, (temp & 0xFF00) != 0)
 	cpu.SetFlag(Z, ((temp & 0x00FF) == 0))
-	signed_overflow_flag := (temp ^ uint16(cpu.a)) & (temp ^ value) & 0x0080
+	signed_overflow_flag := (temp ^ uint16(cpu.A)) & (temp ^ value) & 0x0080
 	cpu.SetFlag(V, signed_overflow_flag != 0)
 	cpu.SetFlag(N, (temp & 0x0080) != 0)
 
-	cpu.a = uint8(temp & 0x00FF)
+	cpu.A = uint8(temp & 0x00FF)
 
 	return 1
 }
@@ -421,9 +421,9 @@ func (cpu *CPU) SBC() uint8 {
 // Instruction: Bitwise logic AND
 func (cpu *CPU) AND() uint8 {
 	cpu.Fetch()
-	cpu.a = cpu.a & cpu.fetched
-	cpu.SetFlag(Z, cpu.a == 0x00)
-	cpu.SetFlag(N, (cpu.a & 0x80) != 0)
+	cpu.A = cpu.A & cpu.fetched
+	cpu.SetFlag(Z, cpu.A == 0x00)
+	cpu.SetFlag(N, (cpu.A & 0x80) != 0)
 
 	return 1
 }
@@ -437,7 +437,7 @@ func (cpu *CPU) ASL() uint8 {
 	cpu.SetFlag(N, (temp & 0x80) != 0)
 
 	if cpu.lookup[cpu.opcode].ModeType == AddrModeIMP {
-		cpu.a = uint8(temp & 0x00FF)
+		cpu.A = uint8(temp & 0x00FF)
 	} else {
 		cpu.Write(cpu.addr_abs, uint8(temp & 0x00FF))
 	}
@@ -449,13 +449,13 @@ func (cpu *CPU) ASL() uint8 {
 func (cpu *CPU) BCC() uint8 {
 	if cpu.GetFlag(C) == 0 {
 		cpu.cycles++
-		cpu.addr_abs = cpu.pc + cpu.addr_rel
+		cpu.addr_abs = cpu.Pc + cpu.addr_rel
 
-		if (cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00) {
+		if (cpu.addr_abs & 0xFF00) != (cpu.Pc & 0xFF00) {
 			cpu.cycles++
 		}
 
-		cpu.pc = cpu.addr_abs
+		cpu.Pc = cpu.addr_abs
 	}
 
 	return 0
@@ -465,13 +465,13 @@ func (cpu *CPU) BCC() uint8 {
 func (cpu *CPU) BCS() uint8 {
 	if cpu.GetFlag(C) == 1 {
 		cpu.cycles++
-		cpu.addr_abs = cpu.pc + cpu.addr_rel
+		cpu.addr_abs = cpu.Pc + cpu.addr_rel
 
-		if (cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00) {
+		if (cpu.addr_abs & 0xFF00) != (cpu.Pc & 0xFF00) {
 			cpu.cycles++
 		}
 
-		cpu.pc = cpu.addr_abs
+		cpu.Pc = cpu.addr_abs
 	}
 
 	return 0
@@ -481,13 +481,13 @@ func (cpu *CPU) BCS() uint8 {
 func (cpu *CPU) BEQ() uint8 {
 	if cpu.GetFlag(Z) == 1 {
 		cpu.cycles++
-		cpu.addr_abs = cpu.pc + cpu.addr_rel
+		cpu.addr_abs = cpu.Pc + cpu.addr_rel
 
-		if (cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00) {
+		if (cpu.addr_abs & 0xFF00) != (cpu.Pc & 0xFF00) {
 			cpu.cycles++
 		}
 
-		cpu.pc = cpu.addr_abs
+		cpu.Pc = cpu.addr_abs
 	}
 
 	return 0
@@ -495,7 +495,7 @@ func (cpu *CPU) BEQ() uint8 {
 
 func (cpu *CPU) BIT() uint8 {
 	cpu.Fetch()
-	temp := cpu.a & cpu.fetched
+	temp := cpu.A & cpu.fetched
 
 	cpu.SetFlag(Z, (temp & 0x00FF) == 0x00)
 	cpu.SetFlag(N, (cpu.fetched & (1 << 7)) != 0)
@@ -508,13 +508,13 @@ func (cpu *CPU) BIT() uint8 {
 func (cpu *CPU) BMI() uint8 {
 	if cpu.GetFlag(N) == 1 {
 		cpu.cycles++
-		cpu.addr_abs = cpu.pc + cpu.addr_rel
+		cpu.addr_abs = cpu.Pc + cpu.addr_rel
 
-		if (cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00) {
+		if (cpu.addr_abs & 0xFF00) != (cpu.Pc & 0xFF00) {
 			cpu.cycles++
 		}
 
-		cpu.pc = cpu.addr_abs
+		cpu.Pc = cpu.addr_abs
 	}
 
 	return 0
@@ -524,13 +524,13 @@ func (cpu *CPU) BMI() uint8 {
 func (cpu *CPU) BNE() uint8 {
 	if cpu.GetFlag(Z) == 0 {
 		cpu.cycles++
-		cpu.addr_abs = cpu.pc + cpu.addr_rel
+		cpu.addr_abs = cpu.Pc + cpu.addr_rel
 
-		if (cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00) {
+		if (cpu.addr_abs & 0xFF00) != (cpu.Pc & 0xFF00) {
 			cpu.cycles++
 		}
 
-		cpu.pc = cpu.addr_abs
+		cpu.Pc = cpu.addr_abs
 	}
 
 	return 0
@@ -540,13 +540,13 @@ func (cpu *CPU) BNE() uint8 {
 func (cpu *CPU) BPL() uint8 {
 	if cpu.GetFlag(N) == 0 {
 		cpu.cycles++
-		cpu.addr_abs = cpu.pc + cpu.addr_rel
+		cpu.addr_abs = cpu.Pc + cpu.addr_rel
 
-		if (cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00) {
+		if (cpu.addr_abs & 0xFF00) != (cpu.Pc & 0xFF00) {
 			cpu.cycles++
 		}
 
-		cpu.pc = cpu.addr_abs
+		cpu.Pc = cpu.addr_abs
 	}
 
 	return 0
@@ -554,20 +554,20 @@ func (cpu *CPU) BPL() uint8 {
 
 // Instruction: Break
 func (cpu *CPU) BRK() uint8 {
-	cpu.pc++
+	cpu.Pc++
 
 	cpu.SetFlag(I, true)
-	cpu.Write(0x0100 + uint16(cpu.stkp), uint8((cpu.pc >> 8) & 0x00FF))
-	cpu.stkp--
-	cpu.Write(0x0100 + uint16(cpu.stkp), uint8(cpu.pc & 0x00FF))
-	cpu.stkp--
+	cpu.Write(0x0100 + uint16(cpu.Stkp), uint8((cpu.Pc >> 8) & 0x00FF))
+	cpu.Stkp--
+	cpu.Write(0x0100 + uint16(cpu.Stkp), uint8(cpu.Pc & 0x00FF))
+	cpu.Stkp--
 
 	cpu.SetFlag(B, true)
-	cpu.Write(0x0100 + uint16(cpu.stkp), cpu.status)
-	cpu.stkp--
+	cpu.Write(0x0100 + uint16(cpu.Stkp), cpu.Status)
+	cpu.Stkp--
 	cpu.SetFlag(B, false)
 
-	cpu.pc = uint16(cpu.Read(0xFFFE)) | (uint16(cpu.Read(0xFFF)) << 8)
+	cpu.Pc = uint16(cpu.Read(0xFFFE)) | (uint16(cpu.Read(0xFFF)) << 8)
 
 	return 0
 }
@@ -576,13 +576,13 @@ func (cpu *CPU) BRK() uint8 {
 func (cpu *CPU) BVC() uint8 {
 	if cpu.GetFlag(V) == 0 {
 		cpu.cycles++
-		cpu.addr_abs = cpu.pc + cpu.addr_rel
+		cpu.addr_abs = cpu.Pc + cpu.addr_rel
 
-		if (cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00) {
+		if (cpu.addr_abs & 0xFF00) != (cpu.Pc & 0xFF00) {
 			cpu.cycles++
 		}
 
-		cpu.pc = cpu.addr_abs
+		cpu.Pc = cpu.addr_abs
 	}
 
 	return 0
@@ -592,13 +592,13 @@ func (cpu *CPU) BVC() uint8 {
 func (cpu *CPU) BVS() uint8 {
 	if cpu.GetFlag(V) == 1 {
 		cpu.cycles++
-		cpu.addr_abs = cpu.pc + cpu.addr_rel
+		cpu.addr_abs = cpu.Pc + cpu.addr_rel
 
-		if (cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00) {
+		if (cpu.addr_abs & 0xFF00) != (cpu.Pc & 0xFF00) {
 			cpu.cycles++
 		}
 
-		cpu.pc = cpu.addr_abs
+		cpu.Pc = cpu.addr_abs
 	}
 
 	return 0
@@ -635,8 +635,8 @@ func (cpu *CPU) CLV() uint8 {
 // Instruction: Compare Accumulator
 func (cpu *CPU) CMP() uint8 {
 	cpu.Fetch()
-	temp := uint16(cpu.a) - uint16(cpu.fetched)
-	cpu.SetFlag(C, cpu.a >= cpu.fetched)
+	temp := uint16(cpu.A) - uint16(cpu.fetched)
+	cpu.SetFlag(C, cpu.A >= cpu.fetched)
 	cpu.SetFlag(Z, (temp & 0x00FF) == 0x0000)
 	cpu.SetFlag(N, (temp & 0x0080) != 0)
 
@@ -646,8 +646,8 @@ func (cpu *CPU) CMP() uint8 {
 // Instruction: Compare X Register
 func (cpu *CPU) CPX() uint8 {
 	cpu.Fetch()
-	temp := uint16(cpu.x) - uint16(cpu.fetched)
-	cpu.SetFlag(C, cpu.x >= cpu.fetched)
+	temp := uint16(cpu.X) - uint16(cpu.fetched)
+	cpu.SetFlag(C, cpu.X >= cpu.fetched)
 	cpu.SetFlag(Z, (temp & 0x00FF) == 0x0000)
 	cpu.SetFlag(N, (temp & 0x0080) != 0)
 
@@ -657,8 +657,8 @@ func (cpu *CPU) CPX() uint8 {
 // Instruction: Comapre Y Register
 func (cpu *CPU) CPY() uint8 {
 	cpu.Fetch()
-	temp := uint16(cpu.y) - uint16(cpu.fetched)
-	cpu.SetFlag(C, cpu.y >= cpu.fetched)
+	temp := uint16(cpu.Y) - uint16(cpu.fetched)
+	cpu.SetFlag(C, cpu.Y >= cpu.fetched)
 	cpu.SetFlag(Z, (temp & 0x00FF) == 0x0000)
 	cpu.SetFlag(N, (temp & 0x0080) != 0)
 
@@ -678,18 +678,18 @@ func (cpu *CPU) DEC() uint8 {
 
 // Instruction: Decrement X Register
 func (cpu *CPU) DEX() uint8 {
-	cpu.x--
-	cpu.SetFlag(Z, cpu.x == 0x00)
-	cpu.SetFlag(N, (cpu.x & 0x80) != 0)
+	cpu.X--
+	cpu.SetFlag(Z, cpu.X == 0x00)
+	cpu.SetFlag(N, (cpu.X & 0x80) != 0)
 
 	return 0
 }
 
 // Instruction: Decrement Y Register
 func (cpu *CPU) DEY() uint8 {
-	cpu.y--
-	cpu.SetFlag(Z, cpu.y == 0x00)
-	cpu.SetFlag(N, (cpu.y & 0x80) != 0)
+	cpu.Y--
+	cpu.SetFlag(Z, cpu.Y == 0x00)
+	cpu.SetFlag(N, (cpu.Y & 0x80) != 0)
 
 	return 0
 }
@@ -697,9 +697,9 @@ func (cpu *CPU) DEY() uint8 {
 // Instruction: Bitwise Logic XOR
 func (cpu *CPU) EOR() uint8 {
 	cpu.Fetch()
-	cpu.a = cpu.a ^ cpu.fetched
-	cpu.SetFlag(Z, cpu.a == 0x00)
-	cpu.SetFlag(N, (cpu.a & 0x80) != 0)
+	cpu.A = cpu.A ^ cpu.fetched
+	cpu.SetFlag(Z, cpu.A == 0x00)
+	cpu.SetFlag(N, (cpu.A & 0x80) != 0)
 
 	return 1
 }
@@ -717,39 +717,39 @@ func (cpu *CPU) INC() uint8 {
 
 // Instruction: Increment X Register
 func (cpu *CPU) INX() uint8 {
-	cpu.x++
-	cpu.SetFlag(Z, cpu.x == 0x00)
-	cpu.SetFlag(N, (cpu.x & 0x80) != 0)
+	cpu.X++
+	cpu.SetFlag(Z, cpu.X == 0x00)
+	cpu.SetFlag(N, (cpu.X & 0x80) != 0)
 
 	return 0
 }
 
 // Instruction: Increment Y Register
 func (cpu *CPU) INY() uint8 {
-	cpu.y++
-	cpu.SetFlag(Z, cpu.y == 0x00)
-	cpu.SetFlag(N, (cpu.y & 0x80) != 0)
+	cpu.Y++
+	cpu.SetFlag(Z, cpu.Y == 0x00)
+	cpu.SetFlag(N, (cpu.Y & 0x80) != 0)
 
 	return 0
 }
 
 // Instruction: Jump to Location
 func (cpu *CPU) JMP() uint8 {
-	cpu.pc = cpu.addr_abs
+	cpu.Pc = cpu.addr_abs
 
 	return 0
 }
 
 // Instruction: Jump to Sub-Routine
 func (cpu *CPU) JSR() uint8 {
-	cpu.pc--
+	cpu.Pc--
 
-	cpu.Write(0x0100 + uint16(cpu.stkp), uint8((cpu.pc >> 8) & 0x00FF))
-	cpu.stkp--
-	cpu.Write(0x0100 + uint16(cpu.stkp), uint8(cpu.pc & 0x00FF))
-	cpu.stkp--
+	cpu.Write(0x0100 + uint16(cpu.Stkp), uint8((cpu.Pc >> 8) & 0x00FF))
+	cpu.Stkp--
+	cpu.Write(0x0100 + uint16(cpu.Stkp), uint8(cpu.Pc & 0x00FF))
+	cpu.Stkp--
 
-	cpu.pc = cpu.addr_abs
+	cpu.Pc = cpu.addr_abs
 
 	return 0
 }
@@ -757,9 +757,9 @@ func (cpu *CPU) JSR() uint8 {
 // Instruction: Load The Accumulator
 func (cpu *CPU) LDA() uint8 {
 	cpu.Fetch()
-	cpu.a = cpu.fetched
-	cpu.SetFlag(Z, cpu.a == 0x00)
-	cpu.SetFlag(N, (cpu.a & 0x80) != 0)
+	cpu.A = cpu.fetched
+	cpu.SetFlag(Z, cpu.A == 0x00)
+	cpu.SetFlag(N, (cpu.A & 0x80) != 0)
 
 	return 1
 }
@@ -767,9 +767,9 @@ func (cpu *CPU) LDA() uint8 {
 // Instruction: Load the X Register
 func (cpu *CPU) LDX() uint8 {
 	cpu.Fetch()
-	cpu.x = cpu.fetched
-	cpu.SetFlag(Z, cpu.x == 0x00)
-	cpu.SetFlag(N, (cpu.x & 0x80) != 0)
+	cpu.X = cpu.fetched
+	cpu.SetFlag(Z, cpu.X == 0x00)
+	cpu.SetFlag(N, (cpu.X & 0x80) != 0)
 
 	return 1
 }
@@ -777,9 +777,9 @@ func (cpu *CPU) LDX() uint8 {
 // Instruction: Load the Y Register
 func (cpu *CPU) LDY() uint8 {
 	cpu.Fetch()
-	cpu.y = cpu.fetched
-	cpu.SetFlag(Z, cpu.y == 0x00)
-	cpu.SetFlag(N, (cpu.y & 0x80) != 0)
+	cpu.Y = cpu.fetched
+	cpu.SetFlag(Z, cpu.Y == 0x00)
+	cpu.SetFlag(N, (cpu.Y & 0x80) != 0)
 
 	return 1
 }
@@ -792,7 +792,7 @@ func (cpu *CPU) LSR() uint8 {
 	cpu.SetFlag(N, (temp & 0x0080) != 0)
 
 	if cpu.lookup[cpu.opcode].ModeType == AddrModeIMP {
-		cpu.a = temp & 0x00FF
+		cpu.A = temp & 0x00FF
 	} else {
 		cpu.Write(cpu.addr_abs, temp & 0x00FF)
 	}
@@ -811,45 +811,45 @@ func (cpu *CPU) NOP() uint8 {
 // Instruction: Bitwise Logic OR
 func (cpu *CPU) ORA() uint8 {
 	cpu.Fetch()
-	cpu.a = cpu.a | cpu.fetched
-	cpu.SetFlag(Z, cpu.a == 0x00)
-	cpu.SetFlag(N, (cpu.a & 0x80) != 0)
+	cpu.A = cpu.A | cpu.fetched
+	cpu.SetFlag(Z, cpu.A == 0x00)
+	cpu.SetFlag(N, (cpu.A & 0x80) != 0)
 
 	return 0
 }
 
 // Instruction: Push Accuumulator to Stack
 func (cpu *CPU) PHA() uint8 {
-	cpu.Write(0x0100 + uint16(cpu.stkp), cpu.a)
-	cpu.stkp--
+	cpu.Write(0x0100 + uint16(cpu.Stkp), cpu.A)
+	cpu.Stkp--
 
 	return 0
 }
 
 // Instruction: Push Status Register to Stack
 func (cpu *CPU) PHP() uint8 {
-	cpu.Write(0x0100 + uint16(cpu.stkp), cpu.status | B | U)
+	cpu.Write(0x0100 + uint16(cpu.Stkp), cpu.Status | B | U)
 	cpu.SetFlag(B, false)
 	cpu.SetFlag(U, false)
-	cpu.stkp--
+	cpu.Stkp--
 
 	return 0
 }
 
 // Instruction: Pop Accumulator off Stack
 func (cpu *CPU) PLA() uint8 {
-	cpu.stkp++
-	cpu.a = cpu.Read(0x0100 + uint16(cpu.stkp))
-	cpu.SetFlag(Z, cpu.a == 0x00)
-	cpu.SetFlag(N, (cpu.a & 0x80) != 0)
+	cpu.Stkp++
+	cpu.A = cpu.Read(0x0100 + uint16(cpu.Stkp))
+	cpu.SetFlag(Z, cpu.A == 0x00)
+	cpu.SetFlag(N, (cpu.A & 0x80) != 0)
 
 	return 0
 }
 
 // Instruction: Pop Status Register off Stack
 func (cpu *CPU) PLP() uint8 {
-	cpu.stkp++
-	cpu.status = cpu.Read(0x0100 + uint16(cpu.stkp))
+	cpu.Stkp++
+	cpu.Status = cpu.Read(0x0100 + uint16(cpu.Stkp))
 	cpu.SetFlag(U, true)
 
 	return 0
@@ -863,7 +863,7 @@ func (cpu *CPU) ROL() uint8 {
 	cpu.SetFlag(N, (temp & 0x0080) != 0)
 
 	if cpu.lookup[cpu.opcode].ModeType == AddrModeIMP {
-		cpu.a = uint8(temp & 0x00FF)
+		cpu.A = uint8(temp & 0x00FF)
 	} else {
 		cpu.Write(cpu.addr_abs, uint8(temp & 0x00FF))
 	}
@@ -879,7 +879,7 @@ func (cpu *CPU) ROR() uint8 {
 	cpu.SetFlag(N, (temp & 0x0080) != 0)
 
 	if cpu.lookup[cpu.opcode].ModeType == AddrModeIMP {
-		cpu.a = uint8(temp & 0x00FF)
+		cpu.A = uint8(temp & 0x00FF)
 	} else {
 		cpu.Write(cpu.addr_abs, uint8(temp & 0x00FF))
 	}
@@ -888,26 +888,26 @@ func (cpu *CPU) ROR() uint8 {
 }
 
 func (cpu *CPU) RTI() uint8 {
-	cpu.stkp++
-	cpu.status = cpu.Read(0x0100 + uint16(cpu.stkp))
-	cpu.status = uint8(uint16(cpu.status) &^ uint16(B))
-	cpu.status = uint8(uint16(cpu.status) &^ uint16(U))
+	cpu.Stkp++
+	cpu.Status = cpu.Read(0x0100 + uint16(cpu.Stkp))
+	cpu.Status = uint8(uint16(cpu.Status) &^ uint16(B))
+	cpu.Status = uint8(uint16(cpu.Status) &^ uint16(U))
 
-	cpu.stkp++
-	cpu.pc = uint16(cpu.Read(0x0100 + uint16(cpu.stkp)))
-	cpu.stkp++
-	cpu.pc |= uint16(cpu.Read(0x0100 + uint16(cpu.stkp))) << 8
+	cpu.Stkp++
+	cpu.Pc = uint16(cpu.Read(0x0100 + uint16(cpu.Stkp)))
+	cpu.Stkp++
+	cpu.Pc |= uint16(cpu.Read(0x0100 + uint16(cpu.Stkp))) << 8
 
 	return 0
 }
 
 func (cpu *CPU) RTS() uint8 {
-	cpu.stkp++
-	cpu.pc = uint16(cpu.Read(0x0100 + uint16(cpu.stkp)))
-	cpu.stkp++
-	cpu.pc |= uint16(cpu.Read(0x0100 + uint16(cpu.stkp))) << 8
+	cpu.Stkp++
+	cpu.Pc = uint16(cpu.Read(0x0100 + uint16(cpu.Stkp)))
+	cpu.Stkp++
+	cpu.Pc |= uint16(cpu.Read(0x0100 + uint16(cpu.Stkp))) << 8
 
-	cpu.pc++
+	cpu.Pc++
 
 	return 0
 }
@@ -935,73 +935,73 @@ func (cpu *CPU) SEI() uint8 {
 
 // Instruction: Store Accumulator at Address
 func (cpu *CPU) STA() uint8 {
-	cpu.Write(cpu.addr_abs, cpu.a)
+	cpu.Write(cpu.addr_abs, cpu.A)
 
 	return 0
 }
 
 // Instruction: Store X Register at Address
 func (cpu *CPU) STX() uint8 {
-	cpu.Write(cpu.addr_abs, cpu.x)
+	cpu.Write(cpu.addr_abs, cpu.X)
 
 	return 0
 }
 
 // Instruction: Store Y Register at Address
 func (cpu *CPU) STY() uint8 {
-	cpu.Write(cpu.addr_abs, cpu.y)
+	cpu.Write(cpu.addr_abs, cpu.Y)
 
 	return 0
 }
 
 // Instruction: Transfer Accumulator to X Register
 func (cpu *CPU) TAX() uint8 {
-	cpu.x = cpu.a
-	cpu.SetFlag(Z, cpu.x == 0x00)
-	cpu.SetFlag(N, (cpu.x & 0x80) != 0)
+	cpu.X = cpu.A
+	cpu.SetFlag(Z, cpu.X == 0x00)
+	cpu.SetFlag(N, (cpu.X & 0x80) != 0)
 
 	return 0
 }
 
 // Instruction: Transfer Accumulator to Y Register
 func (cpu *CPU) TAY() uint8 {
-	cpu.y = cpu.a
-	cpu.SetFlag(Z, cpu.y == 0x00)
-	cpu.SetFlag(N, (cpu.y & 0x80) != 0)
+	cpu.Y = cpu.A
+	cpu.SetFlag(Z, cpu.Y == 0x00)
+	cpu.SetFlag(N, (cpu.Y & 0x80) != 0)
 
 	return 0
 }
 
 // Instruction: Transfer Stack Pointer to X Register
 func (cpu *CPU) TSX() uint8 {
-	cpu.x = cpu.stkp
-	cpu.SetFlag(Z, cpu.x == 0x00)
-	cpu.SetFlag(N, (cpu.x & 0x80) != 0)
+	cpu.X = cpu.Stkp
+	cpu.SetFlag(Z, cpu.X == 0x00)
+	cpu.SetFlag(N, (cpu.X & 0x80) != 0)
 
 	return 0
 }
 
 // Instruction: Transfer X Register to Accumulator
 func (cpu *CPU) TXA() uint8 {
-	cpu.a = cpu.x
-	cpu.SetFlag(Z, cpu.a == 0x00)
-	cpu.SetFlag(N, (cpu.a & 0x80) != 0)
+	cpu.A = cpu.X
+	cpu.SetFlag(Z, cpu.A == 0x00)
+	cpu.SetFlag(N, (cpu.A & 0x80) != 0)
 
 	return 0
 }
 
 // Instruction: Transfer X Register to Stack Pointer
 func (cpu *CPU) TXS() uint8 {
-	cpu.stkp = cpu.x
+	cpu.Stkp = cpu.X
 
 	return 0
 }
 
 // Instruction: Transfer Y Register to Accumulator
 func (cpu *CPU) TYA() uint8 {
-	cpu.a = cpu.y
-	cpu.SetFlag(Z, cpu.a == 0x00)
-	cpu.SetFlag(N, (cpu.a & 0x80) != 0)
+	cpu.A = cpu.Y
+	cpu.SetFlag(Z, cpu.A == 0x00)
+	cpu.SetFlag(N, (cpu.A & 0x80) != 0)
 
 	return 0
 }
@@ -1019,11 +1019,11 @@ func (cpu *CPU) PrintCPU() {
 	fmt.Println("\n------------------------------------------------------------")
 	fmt.Printf("| %-12s | %-13s | %-25s |\n", "Field", "Value", "Description")
 	fmt.Println("------------------------------------------------------------")
-	fmt.Printf("| %-12s | $%-12.2X | %-25s |\n", "a", cpu.a, "Accumulator register")
-	fmt.Printf("| %-12s | $%-12.2X | %-25s |\n", "x", cpu.x, "X register")
-	fmt.Printf("| %-12s | $%-12.2X | %-25s |\n", "y", cpu.y, "Y register")
-	fmt.Printf("| %-12s | $%-12.4X | %-25s |\n", "stkp", cpu.stkp, "Stack pointer")
-	fmt.Printf("| %-12s | $%-12.4X | %-25s |\n", "pc", cpu.pc, "Program counter")
+	fmt.Printf("| %-12s | $%-12.2X | %-25s |\n", "a", cpu.A, "Accumulator register")
+	fmt.Printf("| %-12s | $%-12.2X | %-25s |\n", "x", cpu.X, "X register")
+	fmt.Printf("| %-12s | $%-12.2X | %-25s |\n", "y", cpu.Y, "Y register")
+	fmt.Printf("| %-12s | $%-12.4X | %-25s |\n", "stkp", cpu.Stkp, "Stack pointer")
+	fmt.Printf("| %-12s | $%-12.4X | %-25s |\n", "pc", cpu.Pc, "Program counter")
 	fmt.Printf("| %-12s | $%-12.2X | %-25s |\n", "fetched", cpu.fetched, "Working input to ALU")
 	fmt.Printf("| %-12s | $%-12.4X | %-25s |\n", "addr_abs", cpu.addr_abs, "Absolute address")
 	fmt.Printf("| %-12s | $%-12.4X | %-25s |\n", "addr_rel", cpu.addr_rel, "Relative address")
@@ -1053,13 +1053,13 @@ func (cpu *CPU) PrintStatusFlags() {
     fmt.Printf("| %-25s | %-6s |\n", "Flag", "Status")
     fmt.Println("--------------------------------------")
 
-    // Iterate through flags and print their status
+    // Iterate through flags and print their Status
     for _, flag := range flags {
-        status := 0
-        if cpu.status&flag.value != 0 {
-            status = 1
+        Status := 0
+        if cpu.Status&flag.value != 0 {
+            Status = 1
         }
-        fmt.Printf("| %-25s | %-6d |\n", flag.name, status)
+        fmt.Printf("| %-25s | %-6d |\n", flag.name, Status)
     }
 
     fmt.Println("--------------------------------------")
