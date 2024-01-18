@@ -6,6 +6,7 @@ import (
 	"strings"
 	"fmt"
 	"sort"
+	"log"
 )
 
 
@@ -43,6 +44,13 @@ func printCodeWindow(keys []uint16, mainKey uint16, dissasMap map[uint16]string)
 func main() {
 	cpu := emu.NewCPU()
 	bus := emu.NewBus()
+	cart := emu.NewCartridge("../ROMS/SuperMarioBros.nes")
+
+	if cart == nil {
+        log.Println("Error: cart is nil")
+    }
+
+	bus.InsertCartridge(cart)
 
 	// Store a program into memory
 	//hexString := "A2 0A 8E 00 00 A2 03 8E 01 00 AC 00 00 A9 00 18 6D 01 00 88 D0 FA 8D 02 00 EA EA EA"
@@ -50,11 +58,11 @@ func main() {
 	hexString = strings.ReplaceAll(hexString, " ", "")
 	bytes, _ := hex.DecodeString(hexString)
 
-	bus.WriteBytes(0x8000, bytes)
+	bus.WriteBytes(0x0000, bytes)
 
 	// Set the reset vector
-	bus.Write(0xFFFC, 0x00)
-	bus.Write(0xFFFD, 0x80)
+	bus.CpuWrite(0xFFFC, 0x00)
+	bus.CpuWrite(0xFFFD, 0x80)
 
 	cpu.ConnectBus(bus)
 
@@ -65,9 +73,14 @@ func main() {
 
 	cpu.Reset()
 
+	// manually set program counter after reset to force it to run code at 0x0000
+	// this isnt correct for emulating the nes since the cartridge address space
+	// starts at 0x8000 but works for simple programs that dont use the allocated space
+	cpu.Pc = 0x0000
+
 	new_inst := false
 
-	dissasMap := cpu.Disassemble(0x8000, 0x8018)
+	dissasMap := cpu.Disassemble(0x0000, 0x0018)
 
 	// Get all the keys of the map and sort them
 	var keys []uint16
@@ -88,7 +101,7 @@ func main() {
 		new_inst = cpu.Clock()
 		if new_inst {
 			i++
-			printCodeWindow(keys, cpu.GetPC(), dissasMap)
+			printCodeWindow(keys, cpu.Pc, dissasMap)
 			cpu.PrintCPU()
 			cpu.PrintStatusFlags()
 			cpu.PrintRAM(0x00, 1)
