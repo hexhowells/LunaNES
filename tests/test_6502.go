@@ -3,6 +3,7 @@ package main
 import (
 	"LunaNES/emu"
 	"log"
+	"fmt"
 )
 
 /*
@@ -45,4 +46,10 @@ func main() {
 	cpu.PrintCPU()
 	cpu.PrintStatusFlags()
 	cpu.PrintRAM(0x00, 1)
+
+	if bus.CpuRead(0x0002, true) == 0x00 {
+		fmt.Println("\nResult of tests: Passed")
+	} else {
+		fmt.Println("\nResult of tests: Failed")
+	}
 }
