@@ -108,6 +108,9 @@ func NewCartridge(filename string) *Cartridge {
 		switch cart.mapperID {
 			case 0:
 				cart.mapper = NewMapper_000(cart.numPrgBanks, cart.numChrBanks)
+			default:
+				log.Println("Mapper not supported for this cartridge")
+				return nil
 		}
 
 		cart.imageValid = true
