@@ -17,6 +17,7 @@ type Bus struct {
 func NewBus() *Bus {
 	bus := Bus{}
 	bus.cpu.ConnectBus(&bus)
+	bus.ppu = *NewPPU()
 	bus.nSystemClockCounter = 0
 
 	for i := range bus.cpuRam {
