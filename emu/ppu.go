@@ -131,6 +131,11 @@ func (p *PPU) GetPatternTable(i uint8, palette uint8) {
 }
 
 
+func (p *PPU) GetColourFromPaletteRam(palette uint8, pixel uint8) {
+	return p.colourPalette[p.PpuRead(0x3F00 + (palette << 2) + pixel) & 0x3F]
+}
+
+
 func (p *PPU) CpuRead(addr uint16, bReadOnly bool) uint8 {
 	data := uint8(0x00)
 
