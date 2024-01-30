@@ -11,16 +11,22 @@ type Pixel struct {
 type PPU struct {
 	cart Cartridge
 	nameTable [2][1024]uint8
+	patternTable[2][4096]uint8
 	paletteTable [32]uint8
 	scanline int16
 	cycle int16
 	frameComplete bool
-	colourPalette [0x40]Pixel
+
+	colourPalette [0x40]Pixel  // stores the colour palettes
+	screen [256, 240]Pixel  // stores the pixels to display on the screen
+	sprNameTable[2]Sprite  // stores the sprites from the name table
+	sprPatternTable[2]Sprite  // stores the sprites from the pattern table
 }
 
 
 func NewPPU() *PPU{
 	ppu := PPU{}
+
 	ppu.colourPalette[0x00] = Pixel{84, 84, 84}
 	ppu.colourPalette[0x00] = Pixel{84, 84, 84}
 	ppu.colourPalette[0x01] = Pixel{0, 30, 116}
@@ -91,6 +97,37 @@ func NewPPU() *PPU{
 	ppu.colourPalette[0x3F] = Pixel{0, 0, 0}
 
 	return &ppu
+}
+
+
+func (p *PPU) GetPatternTable(i uint8, palette uint8) {
+	// Loop through all 16x16 tiles
+	for nTileY := 0; nTileY < 16; nTileY++ {
+		for nTileX := 0; nTileX < 16; nTileX++ {
+			nOffset := uint8(nTileY * 256 + nTileX * 16)
+
+			// Loop through 8x8 grid of pixels per tile
+			// And set each pixel value for the tile
+			for row := 0; row < 8; row++ {
+				tileLsb := p.PpuRead(i * 0x1000 + nOffset + row + 0x0000)
+				tileMsb := p.PpuRead(i * 0x1000 + nOffset + row + 0x0008)
+
+				for col := 0; col < 8; col++ {
+					pixel := (tileLsb & 0x01) + (tileMsb & 0x01)
+
+					tileLsb >>= 1
+					tileMsb >>= 1
+
+					// Set the pixel value of the tile
+					p.sprPatternTable[i].SetPixel(
+						nTileY * 8 + row, 
+						nTileX * 8 + (7 - col), 
+						p.GetColourFromPaletteRam(palette, pixel)
+					)
+				}
+			}
+		}
+	}
 }
 
 
