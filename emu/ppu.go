@@ -8,6 +8,13 @@ type Pixel struct {
 }
 
 
+type status struct {
+	spriteOverflow bool
+	spriteZeroHit bool
+	verticalBlank bool
+}
+
+
 type mask struct {
 	grayscale bool
 	renderBackgroundLeft bool
@@ -17,6 +24,18 @@ type mask struct {
 	enhanceRed bool
 	enhanceGreen bool
 	enhanceBlue bool
+}
+
+
+type control struct {
+	nametableX bool
+	nametableY bool
+	incrementMode bool
+	patternSprite bool
+	patternBackground bool
+	spriteSize bool
+	slaveMode bool
+	enableNmi bool
 }
 
 
