@@ -8,6 +8,18 @@ type Pixel struct {
 }
 
 
+type mask struct {
+	grayscale bool
+	renderBackgroundLeft bool
+	renderSpritesLeft bool
+	renderBackgroun bool
+	renderSprites bool
+	enhanceRed bool
+	enhanceGreen bool
+	enhanceBlue bool
+}
+
+
 type PPU struct {
 	cart Cartridge
 	nameTable [2][1024]uint8
@@ -21,11 +33,15 @@ type PPU struct {
 	screen [256, 240]Pixel  // stores the pixels to display on the screen
 	sprNameTable[2]Sprite  // stores the sprites from the name table
 	sprPatternTable[2]Sprite  // stores the sprites from the pattern table
+
+	maskRegister Mask
 }
 
 
 func NewPPU() *PPU{
 	ppu := PPU{}
+
+	ppu.maskRegister = &mask{}
 
 	ppu.colourPalette[0x00] = Pixel{84, 84, 84}
 	ppu.colourPalette[0x00] = Pixel{84, 84, 84}
@@ -190,6 +206,35 @@ func (p *PPU) PpuRead(addr uint16, bReadOnly bool) uint8 {
 
 	if p.cart.PpuRead(addr, &data) {
 		// cartridge address range
+	} else if addr >= 0x0000 && addr <= 0x1FFF {
+		data = p.patternTable[(addr & 0x1000) >> 12][addr & 0x0FFF]
+	} else if addr >= 0x2000 && addr <= 0x3EFF {
+		addr &= 0x0FFF
+
+		if p.cart.mirror == VERTICAL {
+			if addr >= 0x0000 && addr <= 0x03FF {data = p.nameTable[0][addr & 0x03FF]}
+			if addr >= 0x0400 && addr <= 0x07FF {data = p.nameTable[1][addr & 0x03FF]}
+			if addr >= 0x0800 && addr <= 0x0BFF {data = p.nameTable[0][addr & 0x03FF]}
+			if addr >= 0x0C00 && addr <= 0x0FFF {data = p.nameTable[1][addr & 0x03FF]}
+		} else if p.cart.mirror == HORIZONTAL {
+			if addr >= 0x0000 && addr <= 0x03FF {data = p.nameTable[0][addr & 0x03FF]}
+			if addr >= 0x0400 && addr <= 0x07FF {data = p.nameTable[0][addr & 0x03FF]}
+			if addr >= 0x0800 && addr <= 0x0BFF {data = p.nameTable[1][addr & 0x03FF]}
+			if addr >= 0x0C00 && addr <= 0x0FFF {data = p.nameTable[1][addr & 0x03FF]}
+		}
+	} else if addr >= 0x3F00 && addr <= 0x3FFF {
+		addr &= 0x001F
+
+		if addr == 0x0010 {addr = 0x0000}
+		if addr == 0x0014 {addr = 0x0004}
+		if addr == 0x0018 {addr = 0x0008}
+		if addr == 0x001C {addr = 0x000C}
+
+		if p.maskRegister.grayscale {
+			data = p.paletteTable[addr] & 0x30
+		} else {
+			data = p.paletteTable[addr] & 0x3F
+		}
 	}
 
 	return data
@@ -201,6 +246,30 @@ func (p *PPU) PpuWrite(addr uint16, data uint8) {
 
 	if p.cart.PpuWrite(addr, data) {
 		// cartridge address range
+	} else if addr >= 0x0000 && addr <= 0x1FFF {
+		p.patternTable[(addr & 0x1000) >> 12][addr & 0x0FFF] = data
+	} else if addr >= 0x2000 && addr <= 0x3EFF {
+		addr &= 0x0FFF
+
+		if p.cart.mirror == VERTICAL {
+			if addr >= 0x0000 && addr <= 0x03FF {p.nameTable[0][addr & 0x03FF] = data}
+			if addr >= 0x0400 && addr <= 0x07FF {p.nameTable[1][addr & 0x03FF] = data}
+			if addr >= 0x0800 && addr <= 0x0BFF {p.nameTable[0][addr & 0x03FF] = data}
+			if addr >= 0x0C00 && addr <= 0x0FFF {p.nameTable[1][addr & 0x03FF] = data}
+		} else if p.cart.mirror == HORIZONTAL {
+			if addr >= 0x0000 && addr <= 0x03FF {p.nameTable[0][addr & 0x03FF] = data}
+			if addr >= 0x0400 && addr <= 0x07FF {p.nameTable[0][addr & 0x03FF] = data}
+			if addr >= 0x0800 && addr <= 0x0BFF {p.nameTable[1][addr & 0x03FF] = data}
+			if addr >= 0x0C00 && addr <= 0x0FFF {p.nameTable[1][addr & 0x03FF] = data}
+		}
+	} else if addr >= 0x3F00 && addr <= 0x3FFF {
+		addr &= 0x001F
+
+		if addr == 0x0010 {addr = 0x0000}
+		if addr == 0x0014 {addr = 0x0004}
+		if addr == 0x0018 {addr = 0x0008}
+		if addr == 0x001C {addr = 0x000C}
+		p.paletteTable[addr] = data
 	}
 }
 
