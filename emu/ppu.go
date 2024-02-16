@@ -14,16 +14,50 @@ type status struct {
 	verticalBlank bool
 }
 
+func (reg *status) setRegisters(data uint8) {
+	reg.spriteOverflow = data & (1<<5) != 0
+	reg.spriteZeroHit = data & (1<<6) != 0
+	reg.verticalBlank = data & (1<<7) != 0
+}
+
+func (reg *status) getRegisters() uint8 {
+	return uint8(reg.spriteOverflow) << 5 |
+			uint8(reg.spriteZeroHit) << 6 |
+			uint8(reg.verticalBlank) << 7
+}
+
 
 type mask struct {
 	grayscale bool
 	renderBackgroundLeft bool
 	renderSpritesLeft bool
-	renderBackgroun bool
+	renderBackground bool
 	renderSprites bool
 	enhanceRed bool
 	enhanceGreen bool
 	enhanceBlue bool
+}
+
+func (reg *mask) setRegisters(data uint8) {
+	reg.grayscale = data & (1) != 0
+	reg.renderBackgroundLeft = data & (1<<1) != 0
+	reg.renderSpritesLeft = data & (1<<2) != 0
+	reg.renderBackground = data & (1<<3) != 0
+	reg.renderSprites = data & (1<<4) != 0
+	reg.enhanceRed = data & (1<<5) != 0
+	reg.enhanceGreen = data & (1<<6) != 0
+	reg.enhanceBlue = data & (1<<7) != 0
+}
+
+func (reg *mask) getRegisters() uint8 {
+	return uint8(grayscale) |
+			uint8(renderBackgroundLeft) << 1 |
+			uint8(renderSpritesLeft) << 2 |
+			uint8(renderBackground) << 3 |
+			uint8(renderSprites) << 4 |
+			uint8(enhanceRed) << 5 |
+			uint8(enhanceGreen) << 6 |
+			uint8(enhanceBlue) << 7
 }
 
 
@@ -36,6 +70,28 @@ type control struct {
 	spriteSize bool
 	slaveMode bool
 	enableNmi bool
+}
+
+func (reg *control) setRegisters(data uint8) {
+	reg.nametableX = data & (1) != 0
+	reg.nametableY = data & (1<<1) != 0
+	reg.incrementMode = data & (1<<2) != 0
+	reg.patternSprite = data & (1<<3) != 0
+	reg.patternBackground = data & (1<<4) != 0
+	reg.spriteSize = data & (1<<5) != 0
+	reg.slaveMode = data & (1<<6) != 0
+	reg.enableNmi = data & (1<<7) != 0
+}
+
+func (reg *control) getRegisters() uint8 {
+	return uint8(nametableX) |
+			uint8(nametableY) << 1 |
+			uint8(incrementMode) << 2 |
+			uint8(patternSprite) << 3 |
+			uint8(patternBackground) << 4 |
+			uint8(spriteSize) << 5 |
+			uint8(slaveMode) << 6 |
+			uint8(enableNmi) << 7
 }
 
 
