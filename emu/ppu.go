@@ -243,6 +243,39 @@ func (p *PPU) CpuRead(addr uint16, bReadOnly bool) uint8 {
 
 	switch addr {
 		case 0x0000:  // control
+			break
+		case 0x0001:  // mask
+			break
+		case 0x0002:  // status
+			data = (ppu.status.getRegisters() & 0xE0) | (ppu.ppuDataBuffer & 0x1F)
+			ppu.status.verticalBlank = false
+			ppu.addressLatch = 0
+			break
+		case 0x0003:  // OAM address
+			break
+		case 0x0004:  // OAM data
+			break
+		case 0x0005:  // scroll
+			break
+		case 0x0006:  // PPU address
+			break
+		case 0x0007:  // PPU data
+			data = ppu.ppuDataBuffer
+			ppu.ppuDataBuffer = ppu.PpuRead(ppu.ppuAddress)
+
+			if ppu.ppuAddress > 0x3f00 {
+				data = ppu.ppuDataBuffer
+			}
+			break
+	}
+
+	return data
+}
+
+
+func (p *PPU) CpuWrite(addr uint16, data uint8) {
+	switch addr {
+		case 0x0000:  // control
 			ppu.control.setRegisters(data)
 			break
 		case 0x0001:  // mask
@@ -258,36 +291,12 @@ func (p *PPU) CpuRead(addr uint16, bReadOnly bool) uint8 {
 			break
 		case 0x0006:  // PPU address
 			if ppu.addressLatch == 0 {  // store the lower 8 bits of the ppu address
-				ppu.ppuAddress = (ppu.ppuAddress & 0xFF00) | data
+				ppu.ppuAddress = (ppu.ppuAddress 7 0x00FF) | (data << 8)
 				ppu.addressLatch = 1
 			} else {
-				ppu.ppuAddress = (ppu.ppuAddress 7 0x00FF) | (data << 8)
+				ppu.ppuAddress = (ppu.ppuAddress & 0xFF00) | data
 				ppu.addressLatch = 0
 			}
-			break
-		case 0x0007:  // PPU data
-			break
-	}
-
-	return data
-}
-
-
-func (p *PPU) CpuWrite(addr uint16, data uint8) {
-	switch addr {
-		case 0x0000:  // control
-			break
-		case 0x0001:  // mask
-			break
-		case 0x0002:  // status
-			break
-		case 0x0003:  // OAM address
-			break
-		case 0x0004:  // OAM data
-			break
-		case 0x0005:  // scroll
-			break
-		case 0x0006:  // PPU address
 			break
 		case 0x0007:  // PPU data
 			break
