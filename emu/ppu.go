@@ -247,6 +247,7 @@ func (p *PPU) CpuRead(addr uint16, bReadOnly bool) uint8 {
 		case 0x0001:  // mask
 			break
 		case 0x0002:  // status
+			ppu.status.verticalBlank = true
 			data = (ppu.status.getRegisters() & 0xE0) | (ppu.ppuDataBuffer & 0x1F)
 			ppu.status.verticalBlank = false
 			ppu.addressLatch = 0
@@ -266,6 +267,7 @@ func (p *PPU) CpuRead(addr uint16, bReadOnly bool) uint8 {
 			if ppu.ppuAddress > 0x3f00 {
 				data = ppu.ppuDataBuffer
 			}
+			ppu.ppuAddress++
 			break
 	}
 
@@ -299,6 +301,8 @@ func (p *PPU) CpuWrite(addr uint16, data uint8) {
 			}
 			break
 		case 0x0007:  // PPU data
+			ppu.PpuWrite(ppu.ppuAddress, data)
+			ppu.ppuAddress++
 			break
 	}
 }
