@@ -97,26 +97,37 @@ func (reg *control) getRegisters() uint8 {
 
 type PPU struct {
 	cart Cartridge
+
 	nameTable [2][1024]uint8
 	patternTable[2][4096]uint8
 	paletteTable [32]uint8
+
 	scanline int16
 	cycle int16
-	frameComplete bool
+	
+	FrameComplete bool
 
 	colourPalette [0x40]Pixel  // stores the colour palettes
 	screen [256, 240]Pixel  // stores the pixels to display on the screen
 	sprNameTable[2]Sprite  // stores the sprites from the name table
 	sprPatternTable[2]Sprite  // stores the sprites from the pattern table
 
-	maskRegister Mask
+	status status
+	mask mask
+	control control
+
+	addressLatch uint8  // indicates if high or low byte is being written to
+	ppuDataBuffer uint8  // data to ppu is delayed by 1 cycle, so need to buffer the data
+	ppuAddress uint16  // stores the compiled address
 }
 
 
 func NewPPU() *PPU{
 	ppu := PPU{}
 
-	ppu.maskRegister = &mask{}
+	ppu.status = &status{}
+	ppu.mask = &mask{}
+	ppu.control = &control{}
 
 	ppu.colourPalette[0x00] = Pixel{84, 84, 84}
 	ppu.colourPalette[0x00] = Pixel{84, 84, 84}
@@ -232,8 +243,10 @@ func (p *PPU) CpuRead(addr uint16, bReadOnly bool) uint8 {
 
 	switch addr {
 		case 0x0000:  // control
+			ppu.control.setRegisters(data)
 			break
 		case 0x0001:  // mask
+			ppu.mask.setRegisters(data)
 			break
 		case 0x0002:  // status
 			break
@@ -244,6 +257,13 @@ func (p *PPU) CpuRead(addr uint16, bReadOnly bool) uint8 {
 		case 0x0005:  // scroll
 			break
 		case 0x0006:  // PPU address
+			if ppu.addressLatch == 0 {  // store the lower 8 bits of the ppu address
+				ppu.ppuAddress = (ppu.ppuAddress & 0xFF00) | data
+				ppu.addressLatch = 1
+			} else {
+				ppu.ppuAddress = (ppu.ppuAddress 7 0x00FF) | (data << 8)
+				ppu.addressLatch = 0
+			}
 			break
 		case 0x0007:  // PPU data
 			break
