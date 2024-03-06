@@ -21,9 +21,9 @@ func (reg *status) setRegisters(data uint8) {
 }
 
 func (reg *status) getRegisters() uint8 {
-	return uint8(reg.spriteOverflow) << 5 |
-			uint8(reg.spriteZeroHit) << 6 |
-			uint8(reg.verticalBlank) << 7
+	return Btoi(reg.spriteOverflow) << 5 |
+			Btoi(reg.spriteZeroHit) << 6 |
+			Btoi(reg.verticalBlank) << 7
 }
 
 
@@ -50,14 +50,14 @@ func (reg *mask) setRegisters(data uint8) {
 }
 
 func (reg *mask) getRegisters() uint8 {
-	return uint8(grayscale) |
-			uint8(renderBackgroundLeft) << 1 |
-			uint8(renderSpritesLeft) << 2 |
-			uint8(renderBackground) << 3 |
-			uint8(renderSprites) << 4 |
-			uint8(enhanceRed) << 5 |
-			uint8(enhanceGreen) << 6 |
-			uint8(enhanceBlue) << 7
+	return Btoi(reg.grayscale) |
+			Btoi(reg.renderBackgroundLeft) << 1 |
+			Btoi(reg.renderSpritesLeft) << 2 |
+			Btoi(reg.renderBackground) << 3 |
+			Btoi(reg.renderSprites) << 4 |
+			Btoi(reg.enhanceRed) << 5 |
+			Btoi(reg.enhanceGreen) << 6 |
+			Btoi(reg.enhanceBlue) << 7
 }
 
 
@@ -84,14 +84,14 @@ func (reg *control) setRegisters(data uint8) {
 }
 
 func (reg *control) getRegisters() uint8 {
-	return uint8(nametableX) |
-			uint8(nametableY) << 1 |
-			uint8(incrementMode) << 2 |
-			uint8(patternSprite) << 3 |
-			uint8(patternBackground) << 4 |
-			uint8(spriteSize) << 5 |
-			uint8(slaveMode) << 6 |
-			uint8(enableNmi) << 7
+	return Btoi(reg.nametableX) |
+			Btoi(reg.nametableY) << 1 |
+			Btoi(reg.incrementMode) << 2 |
+			Btoi(reg.patternSprite) << 3 |
+			Btoi(reg.patternBackground) << 4 |
+			Btoi(reg.spriteSize) << 5 |
+			Btoi(reg.slaveMode) << 6 |
+			Btoi(reg.enableNmi) << 7
 }
 
 
@@ -108,13 +108,13 @@ type PPU struct {
 	FrameComplete bool
 
 	colourPalette [0x40]Pixel  // stores the colour palettes
-	screen [256, 240]Pixel  // stores the pixels to display on the screen
+	screen [256][240]Pixel  // stores the pixels to display on the screen
 	sprNameTable[2]Sprite  // stores the sprites from the name table
 	sprPatternTable[2]Sprite  // stores the sprites from the pattern table
 
-	status status
-	mask mask
-	control control
+	status *status
+	mask *mask
+	control *control
 
 	addressLatch uint8  // indicates if high or low byte is being written to
 	ppuDataBuffer uint8  // data to ppu is delayed by 1 cycle, so need to buffer the data
@@ -213,8 +213,8 @@ func (p *PPU) GetPatternTable(i uint8, palette uint8) {
 			// Loop through 8x8 grid of pixels per tile
 			// And set each pixel value for the tile
 			for row := 0; row < 8; row++ {
-				tileLsb := p.PpuRead(i * 0x1000 + nOffset + row + 0x0000)
-				tileMsb := p.PpuRead(i * 0x1000 + nOffset + row + 0x0008)
+				tileLsb := p.PpuRead(uint16(i) * 0x1000 + uint16(nOffset) + uint16(row) + 0x0000, true)
+				tileMsb := p.PpuRead(uint16(i) * 0x1000 + uint16(nOffset) + uint16(row) + 0x0008, true)
 
 				for col := 0; col < 8; col++ {
 					pixel := (tileLsb & 0x01) + (tileMsb & 0x01)
@@ -224,9 +224,9 @@ func (p *PPU) GetPatternTable(i uint8, palette uint8) {
 
 					// Set the pixel value of the tile
 					p.sprPatternTable[i].SetPixel(
-						nTileY * 8 + row, 
-						nTileX * 8 + (7 - col), 
-						p.GetColourFromPaletteRam(palette, pixel)
+						uint8(nTileY * 8 + row), 
+						uint8(nTileX * 8 + (7 - col)), 
+						p.GetColourFromPaletteRam(palette, pixel),
 					)
 				}
 			}
@@ -235,8 +235,8 @@ func (p *PPU) GetPatternTable(i uint8, palette uint8) {
 }
 
 
-func (p *PPU) GetColourFromPaletteRam(palette uint8, pixel uint8) {
-	return p.colourPalette[p.PpuRead(0x3F00 + (palette << 2) + pixel) & 0x3F]
+func (p *PPU) GetColourFromPaletteRam(palette uint8, pixel uint8) Pixel {
+	return p.colourPalette[p.PpuRead(0x3F00 + uint16(palette << 2) + uint16(pixel), true) & 0x3F]
 }
 
 
@@ -249,9 +249,9 @@ func (p *PPU) CpuRead(addr uint16, bReadOnly bool) uint8 {
 		case 0x0001:  // mask
 			break
 		case 0x0002:  // status
-			data = (ppu.status.getRegisters() & 0xE0) | (ppu.ppuDataBuffer & 0x1F)
-			ppu.status.verticalBlank = false
-			ppu.addressLatch = 0
+			data = (p.status.getRegisters() & 0xE0) | (p.ppuDataBuffer & 0x1F)
+			p.status.verticalBlank = false
+			p.addressLatch = 0
 			break
 		case 0x0003:  // OAM address
 			break
@@ -262,13 +262,13 @@ func (p *PPU) CpuRead(addr uint16, bReadOnly bool) uint8 {
 		case 0x0006:  // PPU address
 			break
 		case 0x0007:  // PPU data
-			data = ppu.ppuDataBuffer
-			ppu.ppuDataBuffer = ppu.PpuRead(ppu.ppuAddress)
+			data = p.ppuDataBuffer
+			p.ppuDataBuffer = p.PpuRead(p.ppuAddress, true)
 
-			if ppu.ppuAddress > 0x3f00 {
-				data = ppu.ppuDataBuffer
+			if p.ppuAddress > 0x3f00 {
+				data = p.ppuDataBuffer
 			}
-			ppu.ppuAddress++
+			p.ppuAddress++
 			break
 	}
 
@@ -279,10 +279,10 @@ func (p *PPU) CpuRead(addr uint16, bReadOnly bool) uint8 {
 func (p *PPU) CpuWrite(addr uint16, data uint8) {
 	switch addr {
 		case 0x0000:  // control
-			ppu.control.setRegisters(data)
+			p.control.setRegisters(data)
 			break
 		case 0x0001:  // mask
-			ppu.mask.setRegisters(data)
+			p.mask.setRegisters(data)
 			break
 		case 0x0002:  // status
 			break
@@ -293,17 +293,17 @@ func (p *PPU) CpuWrite(addr uint16, data uint8) {
 		case 0x0005:  // scroll
 			break
 		case 0x0006:  // PPU address
-			if ppu.addressLatch == 0 {  // store the lower 8 bits of the ppu address
-				ppu.ppuAddress = (ppu.ppuAddress 7 0x00FF) | (data << 8)
-				ppu.addressLatch = 1
+			if p.addressLatch == 0 {  // store the lower 8 bits of the ppu address
+				p.ppuAddress = (p.ppuAddress & 0x00FF) | (uint16(data) << 8)
+				p.addressLatch = 1
 			} else {
-				ppu.ppuAddress = (ppu.ppuAddress & 0xFF00) | data
-				ppu.addressLatch = 0
+				p.ppuAddress = (p.ppuAddress & 0xFF00) | uint16(data)
+				p.addressLatch = 0
 			}
 			break
 		case 0x0007:  // PPU data
-			ppu.PpuWrite(ppu.ppuAddress, data)
-			ppu.ppuAddress++
+			p.PpuWrite(p.ppuAddress, data)
+			p.ppuAddress++
 			break
 	}
 }
@@ -339,7 +339,7 @@ func (p *PPU) PpuRead(addr uint16, bReadOnly bool) uint8 {
 		if addr == 0x0018 {addr = 0x0008}
 		if addr == 0x001C {addr = 0x000C}
 
-		if p.maskRegister.grayscale {
+		if p.mask.grayscale {
 			data = p.paletteTable[addr] & 0x30
 		} else {
 			data = p.paletteTable[addr] & 0x3F
@@ -389,14 +389,14 @@ func (p *PPU) ConnectCartridge(cartridge *Cartridge) {
 
 
 func (p *PPU) Clock() {
-	if ppu.scanline == -1 && cycle == 1 {
-		ppu.status.verticalBlank = false
+	if p.scanline == -1 && p.cycle == 1 {
+		p.status.verticalBlank = false
 	}
 
-	if ppu.scanline == 241 && ppu.cycle == 1 {
-		ppu.status.verticalBlank = true
-		if ppu.control.enableNmi {
-			ppu.Nmi = true
+	if p.scanline == 241 && p.cycle == 1 {
+		p.status.verticalBlank = true
+		if p.control.enableNmi {
+			p.Nmi = true
 		}
 	}
 
@@ -408,7 +408,7 @@ func (p *PPU) Clock() {
 
 		if p.scanline >= 261 {
 			p.scanline = -1
-			p.frameComplete = true
+			p.FrameComplete = true
 		}
 	}
 }

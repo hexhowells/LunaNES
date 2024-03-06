@@ -9,8 +9,13 @@ type Sprite struct {
 
 
 func CreateSprite(rows uint8, cols uint8) *Sprite {
-	sprite = Sprite{}
-	sprite.Pixels = [rows][cols]Pixel{}
+	sprite := Sprite{}
+
+	sprite.Pixels = make([][]Pixel, rows)
+	for i := range sprite.Pixels {
+		sprite.Pixels[i] = make([]Pixel, cols)
+	}
+
 	sprite.Rows = rows
 	sprite.Cols = cols
 
@@ -18,8 +23,8 @@ func CreateSprite(rows uint8, cols uint8) *Sprite {
 }
 
 
-func (s *Sprite) SetPixel(row uint8, col uint8, value uint8) {
-	if 0 <= row <= s.Rows && 0 <= col <= s.Cols {
+func (s *Sprite) SetPixel(row uint8, col uint8, value Pixel) {
+	if row < s.Rows && col < s.Cols {
 		s.Pixels[row][col] = value
 	}
 }
