@@ -1,2 +1,6 @@
 /examples/vis
 /ROMS
+*/fonts
+
+go.mod
+go.sum
