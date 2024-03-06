@@ -2,24 +2,24 @@ package emu
 
 
 type Sprite struct {
-	pixels [][]Pixel
-	rows uint8
-	cols uint8
+	Pixels [][]Pixel
+	Rows uint8
+	Cols uint8
 }
 
 
 func CreateSprite(rows uint8, cols uint8) *Sprite {
 	sprite = Sprite{}
-	sprite.pixels = [rows][cols]Pixel{}
-	sprite.rows = rows
-	sprite.cols = cols
+	sprite.Pixels = [rows][cols]Pixel{}
+	sprite.Rows = rows
+	sprite.Cols = cols
 
 	return &sprite
 }
 
 
 func (s *Sprite) SetPixel(row uint8, col uint8, value uint8) {
-	if 0 <= row <= s.rows && 0 <= col <= s.cols {
-		s.pixels[row][col] = value
+	if 0 <= row <= s.Rows && 0 <= col <= s.Cols {
+		s.Pixels[row][col] = value
 	}
 }
