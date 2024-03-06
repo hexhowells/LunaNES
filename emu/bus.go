@@ -41,6 +41,11 @@ func (b *Bus) Clock() {
 		b.cpu.Clock()
 	}
 
+	if ppu.Nmi {
+		ppu.Nmi = false
+		cpu.Nmi()
+	}
+
 	b.nSystemClockCounter++
 }
 

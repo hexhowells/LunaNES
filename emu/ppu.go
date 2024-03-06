@@ -119,6 +119,8 @@ type PPU struct {
 	addressLatch uint8  // indicates if high or low byte is being written to
 	ppuDataBuffer uint8  // data to ppu is delayed by 1 cycle, so need to buffer the data
 	ppuAddress uint16  // stores the compiled address
+
+	Nmi bool
 }
 
 
@@ -247,7 +249,6 @@ func (p *PPU) CpuRead(addr uint16, bReadOnly bool) uint8 {
 		case 0x0001:  // mask
 			break
 		case 0x0002:  // status
-			ppu.status.verticalBlank = true
 			data = (ppu.status.getRegisters() & 0xE0) | (ppu.ppuDataBuffer & 0x1F)
 			ppu.status.verticalBlank = false
 			ppu.addressLatch = 0
@@ -388,6 +389,17 @@ func (p *PPU) ConnectCartridge(cartridge *Cartridge) {
 
 
 func (p *PPU) Clock() {
+	if ppu.scanline == -1 && cycle == 1 {
+		ppu.status.verticalBlank = false
+	}
+
+	if ppu.scanline == 241 && ppu.cycle == 1 {
+		ppu.status.verticalBlank = true
+		if ppu.control.enableNmi {
+			ppu.Nmi = true
+		}
+	}
+
 	p.cycle++
 
 	if p.cycle >= 341 {
