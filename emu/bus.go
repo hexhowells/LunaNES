@@ -8,7 +8,7 @@ import (
 type Bus struct {
 	cpuRam [0x1FFF + 1]uint8
 	cpu CPU
-	ppu PPU
+	Ppu PPU
 	cart Cartridge
 	nSystemClockCounter uint32  // count of how many clock cycles have passed
 }
@@ -17,7 +17,7 @@ type Bus struct {
 func NewBus() *Bus {
 	bus := Bus{}
 	bus.cpu.ConnectBus(&bus)
-	bus.ppu = *NewPPU()
+	bus.Ppu = *NewPPU()
 	bus.nSystemClockCounter = 0
 
 	for i := range bus.cpuRam {
@@ -35,14 +35,14 @@ func (b *Bus) Reset() {
 
 
 func (b *Bus) Clock() {
-	b.ppu.Clock()
+	b.Ppu.Clock()
 
 	if b.nSystemClockCounter % 3 == 0 {
 		b.cpu.Clock()
 	}
 
-	if b.ppu.Nmi {
-		b.ppu.Nmi = false
+	if b.Ppu.Nmi {
+		b.Ppu.Nmi = false
 		b.cpu.NMI()
 	}
 
@@ -52,7 +52,7 @@ func (b *Bus) Clock() {
 
 func (b *Bus) InsertCartridge(cartridge *Cartridge) {
 	b.cart = *cartridge
-	b.ppu.ConnectCartridge(cartridge)
+	b.Ppu.ConnectCartridge(cartridge)
 }
 
 
@@ -75,7 +75,7 @@ func (b *Bus) CpuWrite(addr uint16, data uint8) {
 	} else if addr >= 0x0000 && addr <= 0x1FFF {
 		b.cpuRam[addr & 0x07FF] = data
 	} else if addr >= 0x2000 && addr <= 0x3FFF {
-		b.ppu.CpuWrite(addr & 0x07FF, data)
+		b.Ppu.CpuWrite(addr & 0x07FF, data)
 	}
 }
 
@@ -89,7 +89,7 @@ func (b *Bus) CpuRead(addr uint16, bReadOnly bool) uint8 {
 	} else if addr >= 0x0000 && addr <= 0x1FFF {
 		data = b.cpuRam[addr & 0x07FF]
 	} else if addr >= 0x2000 && addr <= 0x3FFF {
-		b.ppu.CpuRead(addr & 0x07FF, bReadOnly)
+		b.Ppu.CpuRead(addr & 0x07FF, bReadOnly)
 	}
 
 	return data

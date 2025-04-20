@@ -1,10 +1,14 @@
 package emu
 
+import (
+	"fmt"
+)
+
 
 type Pixel struct {
-	R int
-	G int
-	B int
+	R uint8
+	G uint8
+	B uint8
 }
 
 
@@ -249,7 +253,11 @@ func (p *PPU) CpuRead(addr uint16, bReadOnly bool) uint8 {
 		case 0x0001:  // mask
 			break
 		case 0x0002:  // status
-			data = (p.status.getRegisters() & 0xE0) | (p.ppuDataBuffer & 0x1F)
+			fmt.Println(p.status)
+			fmt.Println(p.status.getRegisters())
+
+			data = (p.status.getRegisters() & 0xE0)// | (p.ppuDataBuffer & 0x1F)
+			fmt.Println(data)
 			p.status.verticalBlank = false
 			p.addressLatch = 0
 			break
