@@ -75,7 +75,7 @@ func (b *Bus) CpuWrite(addr uint16, data uint8) {
 	} else if addr >= 0x0000 && addr <= 0x1FFF {
 		b.cpuRam[addr & 0x07FF] = data
 	} else if addr >= 0x2000 && addr <= 0x3FFF {
-		b.Ppu.CpuWrite(addr & 0x07FF, data)
+		b.Ppu.CpuWrite(addr & 0x0007, data)
 	}
 }
 
@@ -89,7 +89,7 @@ func (b *Bus) CpuRead(addr uint16, bReadOnly bool) uint8 {
 	} else if addr >= 0x0000 && addr <= 0x1FFF {
 		data = b.cpuRam[addr & 0x07FF]
 	} else if addr >= 0x2000 && addr <= 0x3FFF {
-		b.Ppu.CpuRead(addr & 0x07FF, bReadOnly)
+		b.Ppu.CpuRead(addr & 0x0007, bReadOnly)
 	}
 
 	return data

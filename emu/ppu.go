@@ -1,9 +1,5 @@
 package emu
 
-import (
-	"fmt"
-)
-
 
 type Pixel struct {
 	R uint8
@@ -136,7 +132,6 @@ func NewPPU() *PPU{
 	ppu.control = &control{}
 
 	ppu.colourPalette[0x00] = Pixel{84, 84, 84}
-	ppu.colourPalette[0x00] = Pixel{84, 84, 84}
 	ppu.colourPalette[0x01] = Pixel{0, 30, 116}
 	ppu.colourPalette[0x02] = Pixel{8, 16, 144}
 	ppu.colourPalette[0x03] = Pixel{48, 0, 136}
@@ -253,11 +248,8 @@ func (p *PPU) CpuRead(addr uint16, bReadOnly bool) uint8 {
 		case 0x0001:  // mask
 			break
 		case 0x0002:  // status
-			fmt.Println(p.status)
-			fmt.Println(p.status.getRegisters())
-
-			data = (p.status.getRegisters() & 0xE0)// | (p.ppuDataBuffer & 0x1F)
-			fmt.Println(data)
+			p.status.verticalBlank = true
+			data = (p.status.getRegisters() & 0xE0) | (p.ppuDataBuffer & 0x1F)
 			p.status.verticalBlank = false
 			p.addressLatch = 0
 			break
