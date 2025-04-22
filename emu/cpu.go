@@ -567,7 +567,7 @@ func (cpu *CPU) BRK() uint8 {
 	cpu.Stkp--
 	cpu.SetFlag(B, false)
 
-	cpu.Pc = uint16(cpu.Read(0xFFFE)) | (uint16(cpu.Read(0xFFF)) << 8)
+	cpu.Pc = uint16(cpu.Read(0xFFFE)) | (uint16(cpu.Read(0xFFFF)) << 8)
 
 	return 0
 }
