@@ -315,9 +315,9 @@ func (p *PPU) PpuRead(addr uint16, bReadOnly bool) uint8 {
 
 	if p.cart.PpuRead(addr, &data) {
 		// cartridge address range
-	} else if addr >= 0x0000 && addr <= 0x1FFF {
+	} else if addr >= 0x0000 && addr <= 0x1FFF {  // pattern table
 		data = p.patternTable[(addr & 0x1000) >> 12][addr & 0x0FFF]
-	} else if addr >= 0x2000 && addr <= 0x3EFF {
+	} else if addr >= 0x2000 && addr <= 0x3EFF {  // nametable
 		addr &= 0x0FFF
 
 		if p.cart.mirror == VERTICAL {
@@ -331,7 +331,7 @@ func (p *PPU) PpuRead(addr uint16, bReadOnly bool) uint8 {
 			if addr >= 0x0800 && addr <= 0x0BFF {data = p.nameTable[1][addr & 0x03FF]}
 			if addr >= 0x0C00 && addr <= 0x0FFF {data = p.nameTable[1][addr & 0x03FF]}
 		}
-	} else if addr >= 0x3F00 && addr <= 0x3FFF {
+	} else if addr >= 0x3F00 && addr <= 0x3FFF { // palette memory
 		addr &= 0x001F
 
 		if addr == 0x0010 {addr = 0x0000}
@@ -355,9 +355,9 @@ func (p *PPU) PpuWrite(addr uint16, data uint8) {
 
 	if p.cart.PpuWrite(addr, data) {
 		// cartridge address range
-	} else if addr >= 0x0000 && addr <= 0x1FFF {
+	} else if addr >= 0x0000 && addr <= 0x1FFF { // pattern table
 		p.patternTable[(addr & 0x1000) >> 12][addr & 0x0FFF] = data
-	} else if addr >= 0x2000 && addr <= 0x3EFF {
+	} else if addr >= 0x2000 && addr <= 0x3EFF { // nametable
 		addr &= 0x0FFF
 
 		if p.cart.mirror == VERTICAL {
@@ -371,7 +371,7 @@ func (p *PPU) PpuWrite(addr uint16, data uint8) {
 			if addr >= 0x0800 && addr <= 0x0BFF {p.nameTable[1][addr & 0x03FF] = data}
 			if addr >= 0x0C00 && addr <= 0x0FFF {p.nameTable[1][addr & 0x03FF] = data}
 		}
-	} else if addr >= 0x3F00 && addr <= 0x3FFF {
+	} else if addr >= 0x3F00 && addr <= 0x3FFF { // palette memory
 		addr &= 0x001F
 
 		if addr == 0x0010 {addr = 0x0000}
