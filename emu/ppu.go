@@ -248,7 +248,6 @@ func (p *PPU) CpuRead(addr uint16, bReadOnly bool) uint8 {
 		case 0x0001:  // mask
 			break
 		case 0x0002:  // status
-			p.status.verticalBlank = true
 			data = (p.status.getRegisters() & 0xE0) | (p.ppuDataBuffer & 0x1F)
 			p.status.verticalBlank = false
 			p.addressLatch = 0
