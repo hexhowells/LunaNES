@@ -302,7 +302,11 @@ func (p *PPU) CpuWrite(addr uint16, data uint8) {
 			break
 		case 0x0007:  // PPU data
 			p.PpuWrite(p.ppuAddress, data)
-			p.ppuAddress++
+			if p.control.incrementMode {
+				p.ppuAddress += 32
+			} else {
+				p.ppuAddress += 1
+			}
 			break
 	}
 }
@@ -384,6 +388,26 @@ func (p *PPU) PpuWrite(addr uint16, data uint8) {
 
 func (p *PPU) ConnectCartridge(cartridge *Cartridge) {
 	p.cart = *cartridge
+}
+
+
+func (p *PPU) Reset() {
+	p.scanline = 0
+	p.cycle = 0
+	p.FrameComplete = false
+	p.Nmi = false
+
+	// Reset PPU registers
+	p.status = &status{}
+	p.mask = &mask{}
+	p.control = &control{}
+
+	p.addressLatch = 0x00
+	p.ppuDataBuffer = 0x00
+	p.ppuAddress = 0x0000
+
+	// Optionally: clear nameTable, patternTable, paletteTable if needed
+	// (you might skip this if the cartridge fills them in on load)
 }
 
 

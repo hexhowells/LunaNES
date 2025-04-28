@@ -29,6 +29,7 @@ func NewBus() *Bus {
 
 
 func (b *Bus) Reset() {
+	b.Ppu.Reset()
 	b.cpu.Reset()
 	b.nSystemClockCounter = 0
 }
