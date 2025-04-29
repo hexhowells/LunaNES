@@ -7,7 +7,7 @@ import (
 
 type Bus struct {
 	cpuRam [0x1FFF + 1]uint8
-	cpu CPU
+	Cpu CPU
 	Ppu PPU
 	cart Cartridge
 	nSystemClockCounter uint32  // count of how many clock cycles have passed
@@ -16,8 +16,12 @@ type Bus struct {
 
 func NewBus() *Bus {
 	bus := Bus{}
-	bus.cpu.ConnectBus(&bus)
+	
+	bus.Cpu = *NewCPU()
+	bus.Cpu.ConnectBus(&bus)
+	
 	bus.Ppu = *NewPPU()
+	
 	bus.nSystemClockCounter = 0
 
 	for i := range bus.cpuRam {
@@ -30,7 +34,7 @@ func NewBus() *Bus {
 
 func (b *Bus) Reset() {
 	b.Ppu.Reset()
-	b.cpu.Reset()
+	b.Cpu.Reset()
 	b.nSystemClockCounter = 0
 }
 
@@ -39,12 +43,12 @@ func (b *Bus) Clock() {
 	b.Ppu.Clock()
 
 	if b.nSystemClockCounter % 3 == 0 {
-		b.cpu.Clock()
+		b.Cpu.Clock()
 	}
 
 	if b.Ppu.Nmi {
 		b.Ppu.Nmi = false
-		b.cpu.NMI()
+		b.Cpu.NMI()
 	}
 
 	b.nSystemClockCounter++

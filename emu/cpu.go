@@ -120,8 +120,8 @@ func (cpu *CPU) Clock() bool {
 
 	if cpu.cycles == 0 {
 		cpu.opcode = cpu.Read(cpu.Pc)
+		cpu.SetFlag(U, true)
 		cpu.Pc++
-
 		cpu.cycles = cpu.lookup[cpu.opcode].Cycles
 
 		additional_cycle1 := cpu.lookup[cpu.opcode].AddrMode(cpu)
@@ -129,6 +129,7 @@ func (cpu *CPU) Clock() bool {
 		additional_cycle2 := cpu.lookup[cpu.opcode].Operate(cpu)
 
 		cpu.cycles += (additional_cycle1 + additional_cycle2)
+		cpu.SetFlag(U, true)
 	}
 
 	cpu.cycles--
