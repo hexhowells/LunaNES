@@ -42,10 +42,8 @@ func printCodeWindow(keys []uint16, mainKey uint16, dissasMap map[uint16]string)
 
 
 func main() {
-	cpu := emu.NewCPU()
 	bus := emu.NewBus()
-	cart := emu.NewCartridge("../ROMS/palette_fill_novblank.nes")
-	new_inst := false
+	cart := emu.NewCartridge("../ROMS/nestest.nes")
 
 	if cart == nil {
         log.Println("Error: cart is nil")
@@ -53,17 +51,9 @@ func main() {
 
 	bus.InsertCartridge(cart)
 
-	// Set the reset vector
-	bus.CpuWrite(0xFFFC, 0x00)
-	bus.CpuWrite(0xFFFD, 0x80)
+	bus.Reset()
 
-	cpu.ConnectBus(bus)
-
-	cpu.Reset()
-
-	cpu.Pc = 0x8100
-
-	dissasMap := cpu.Disassemble(0x8000, 0x81FF)
+	dissasMap := bus.Cpu.Disassemble(0x8000, 0xCFFF)
 
 	// Get all the keys of the map and sort them
 	var keys []uint16
@@ -79,31 +69,42 @@ func main() {
 		fmt.Println(dissasMap[key])
 	}
 
-	go func() {
-        ticker := time.NewTicker(time.Second / 1000)
-        for {
-            select {
-            case <-ticker.C:
-                // Run the program by clocking the cpu
-				new_inst = cpu.Clock()
-				if new_inst {
-					nSwatchSize := 6
+	prev_pc := uint16(0)
 
-					for p := 0; p < 8; p++ {
-						for s := 0; s < 4; s++ {
-							//printCodeWindow(keys, cpu.Pc, dissasMap)
-							//cpu.PrintStatusFlags()
-							//cpu.PrintRAM(0x00, 1)
-							//cpu.PrintCPU()
-							pix := bus.Ppu.GetColourFromPaletteRam(uint8(p), uint8(s))
-							pixelengine.SetRect(p * (nSwatchSize * 5) + s * nSwatchSize, 0, 6, 6, pix.R, pix.G, pix.B)
-						}
-					}
-				}
-				
+	go func() {
+    ticker := time.NewTicker(time.Second / 60)  // 60Hz
+    for {
+        select {
+        case <-ticker.C:
+            // Clock until a full PPU frame is complete
+            for {
+                bus.Clock()
+
+                if bus.Ppu.FrameComplete {
+                    bus.Ppu.FrameComplete = false
+                    break // Finished a frame
+                }
+            }
+
+            if prev_pc != bus.Cpu.Pc {
+                prev_pc = bus.Cpu.Pc
+                nSwatchSize := 6
+
+                //printCodeWindow(keys, bus.Cpu.Pc, dissasMap)
+                //bus.Cpu.PrintStatusFlags()
+                //bus.Cpu.PrintRAM(0x00, 1)
+                //bus.Cpu.PrintCPU()
+
+                for p := 0; p < 8; p++ {
+                    for s := 0; s < 4; s++ {
+                        pix := bus.Ppu.GetColourFromPaletteRam(uint8(p), uint8(s))
+                        pixelengine.SetRect(p*(nSwatchSize*5)+s*nSwatchSize, 0, 6, 6, pix.R, pix.G, pix.B)
+                    }
+                }
             }
         }
-    }()
+    }
+}()
 
     pixelengine.Start()
 }
