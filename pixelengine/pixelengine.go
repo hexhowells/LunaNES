@@ -14,7 +14,7 @@ type Pixel struct {
 
 const (
     ScreenWidth  = 256
-    ScreenHeight = 240
+    ScreenHeight = 256
     WindowWidth = 1218
     WindowHeight = 720
     fontSize = 12
@@ -37,6 +37,15 @@ type Window struct {
 func (g *Window) Update() error {
     // Update logic can be added here if needed
     return nil
+}
+
+
+func Clear() {
+    for x := 0; x < ScreenWidth; x++ {
+        for y := 0; y < ScreenHeight; y++ {
+            pixels[x][y] = Pixel{R: 0, G: 0, B: 0}
+        }
+    }
 }
 
 
