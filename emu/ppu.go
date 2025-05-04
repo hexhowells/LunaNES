@@ -94,6 +94,33 @@ func (reg *control) getRegisters() uint8 {
 			Btoi(reg.enableNmi) << 7
 }
 
+type loopyRegister struct {
+	coarseX uint16  // 5 bits
+	coarseY uint16  // 5 bits
+	nametableX bool  // 1 bit
+	nametableY bool  // 1 bit
+	fineY uint16  // 3 bits
+	unused bool  // 1 bit
+}
+
+func (lr *loopyRegister) SetRegisters(value uint16) {
+	lr.coarseX = value & 0x001F                  // bits 0–4
+	lr.coarseY = (value >> 5) & 0x001F           // bits 5–9
+	lr.nametableX = (value>>10)&1 != 0           // bit 10
+	lr.nametableY = (value>>11)&1 != 0           // bit 11
+	lr.fineY = (value >> 12) & 0x0007            // bits 12–14
+	lr.unused = (value>>15)&1 != 0               // bit 15
+}
+
+func (lr *loopyRegister) GetRegisters() uint16 {
+	return lr.coarseX & 0x001F |
+			(lr.coarseY & 0x001F) << 5 |
+			Btoi16(lr.nametableX) << 10 |
+			Btoi16(lr.nametableY) << 11 |
+			(lr.fineY & 0x0007) << 12 |
+			Btoi16(lr.unused) << 15
+}
+
 
 type PPU struct {
 	cart Cartridge
@@ -116,9 +143,13 @@ type PPU struct {
 	mask *mask
 	control *control
 
+	vramAddr *loopyRegister
+	tramAddr *loopyRegister
+
+	fineX uint8
+
 	addressLatch uint8  // indicates if high or low byte is being written to
 	ppuDataBuffer uint8  // data to ppu is delayed by 1 cycle, so need to buffer the data
-	ppuAddress uint16  // stores the compiled address
 
 	Nmi bool
 }
@@ -130,6 +161,8 @@ func NewPPU() *PPU{
 	ppu.status = &status{}
 	ppu.mask = &mask{}
 	ppu.control = &control{}
+	ppu.vramAddr = &loopyRegister{}
+	ppu.tramAddr = &loopyRegister{}
 
 	ppu.colourPalette[0x00] = Pixel{84, 84, 84}
 	ppu.colourPalette[0x01] = Pixel{0, 30, 116}
@@ -234,6 +267,14 @@ func (p *PPU) GetPatternTable(i uint8, palette uint8) {
 }
 
 
+func (p *PPU) BackgroundPatternTableBase() uint16 {
+	if p.control.patternBackground {
+		return 0x1000
+	}
+	return 0x0000
+}
+
+
 func (p *PPU) GetColourFromPaletteRam(palette uint8, pixel uint8) Pixel {
 	return p.colourPalette[p.PpuRead(0x3F00 + uint16(palette << 2) + uint16(pixel), true) & 0x3F]
 }
@@ -262,12 +303,16 @@ func (p *PPU) CpuRead(addr uint16, bReadOnly bool) uint8 {
 			break
 		case 0x0007:  // PPU data
 			data = p.ppuDataBuffer
-			p.ppuDataBuffer = p.PpuRead(p.ppuAddress, true)
+			p.ppuDataBuffer = p.PpuRead(p.vramAddr.GetRegisters(), true)
 
-			if p.ppuAddress > 0x3f00 {
+			if p.vramAddr.GetRegisters() > 0x3f00 {
 				data = p.ppuDataBuffer
 			}
-			p.ppuAddress++
+			if p.control.incrementMode {
+				p.vramAddr.SetRegisters(p.vramAddr.GetRegisters() + 32)
+			} else {
+				p.vramAddr.SetRegisters(p.vramAddr.GetRegisters() + 1)
+			}
 			break
 	}
 
@@ -279,6 +324,8 @@ func (p *PPU) CpuWrite(addr uint16, data uint8) {
 	switch addr {
 		case 0x0000:  // control
 			p.control.setRegisters(data)
+			p.tramAddr.nametableX = p.control.nametableX
+			p.tramAddr.nametableY = p.control.nametableY
 			break
 		case 0x0001:  // mask
 			p.mask.setRegisters(data)
@@ -290,22 +337,33 @@ func (p *PPU) CpuWrite(addr uint16, data uint8) {
 		case 0x0004:  // OAM data
 			break
 		case 0x0005:  // scroll
+			if p.addressLatch == 0 {
+				p.fineX = data & 0x07
+				p.tramAddr.coarseX = uint16(data >> 3)
+				p.addressLatch = 1
+			} else {
+				p.tramAddr.fineY = uint16(data & 0x07)
+				p.tramAddr.coarseY = uint16(data >> 3)
+				p.addressLatch = 0
+			}
 			break
 		case 0x0006:  // PPU address
 			if p.addressLatch == 0 {  // store the lower 8 bits of the ppu address
-				p.ppuAddress = (p.ppuAddress & 0x00FF) | (uint16(data) << 8)
+				p.tramAddr.SetRegisters((p.tramAddr.GetRegisters() & 0x00FF) | (uint16(data) << 8))
 				p.addressLatch = 1
 			} else {
-				p.ppuAddress = (p.ppuAddress & 0xFF00) | uint16(data)
+				p.tramAddr.SetRegisters((p.tramAddr.GetRegisters() & 0xFF00) | uint16(data))
+				*p.vramAddr = *p.tramAddr
 				p.addressLatch = 0
 			}
 			break
 		case 0x0007:  // PPU data
-			p.PpuWrite(p.ppuAddress, data)
+			p.PpuWrite(p.vramAddr.GetRegisters(), data)
+			
 			if p.control.incrementMode {
-				p.ppuAddress += 32
+				p.vramAddr.SetRegisters(p.vramAddr.GetRegisters() + 32)
 			} else {
-				p.ppuAddress += 1
+				p.vramAddr.SetRegisters(p.vramAddr.GetRegisters() + 1)
 			}
 			break
 	}
@@ -401,13 +459,11 @@ func (p *PPU) Reset() {
 	p.status = &status{}
 	p.mask = &mask{}
 	p.control = &control{}
+	p.vramAddr = &loopyRegister{}
+	p.tramAddr = &loopyRegister{}
 
 	p.addressLatch = 0x00
 	p.ppuDataBuffer = 0x00
-	p.ppuAddress = 0x0000
-
-	// Optionally: clear nameTable, patternTable, paletteTable if needed
-	// (you might skip this if the cartridge fills them in on load)
 }
 
 
