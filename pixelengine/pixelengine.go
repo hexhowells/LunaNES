@@ -14,9 +14,9 @@ type Pixel struct {
 
 const (
     ScreenWidth  = 256
-    ScreenHeight = 256
-    WindowWidth = 1218
-    WindowHeight = 720
+    ScreenHeight = 240
+    WindowWidth = 720
+    WindowHeight = 675
     fontSize = 12
 )
 
@@ -60,7 +60,7 @@ func (g *Window) Draw(screen *ebiten.Image) {
 
 
 func (g *Window) Layout(outsideWidth, outsideHeight int) (int, int) {
-    return ScreenWidth+150, ScreenHeight
+    return ScreenWidth, ScreenHeight
 }
 
 
