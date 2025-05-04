@@ -96,12 +96,17 @@ func NewCartridge(filename string) *Cartridge {
 
 		// Load character memory
 		cart.numChrBanks = cart.header.ChrRomChunks
-		cart.chrMemory = make([]uint8, uint16(cart.numChrBanks) * 8192)
-		_, err = file.Read(cart.chrMemory) //
-		if err != nil {
-			log.Println("Error: could not read character memory from ROM")
-			log.Println(err)
-			return nil
+		if cart.numChrBanks == 0 {
+			log.Println("CHR-ROM size is 0; allocating CHR-RAM")
+			cart.chrMemory = make([]uint8, 8192) // Allocate CHR-RAM
+			cart.numChrBanks = 1
+		} else {
+			cart.chrMemory = make([]uint8, uint16(cart.numChrBanks)*8192)
+			_, err = file.Read(cart.chrMemory)
+			if err != nil {
+				log.Println("Error: could not read character memory from ROM")
+				return nil
+			}
 		}
 
 		// Load the mapper
