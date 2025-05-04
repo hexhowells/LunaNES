@@ -152,6 +152,16 @@ type PPU struct {
 	ppuDataBuffer uint8  // data to ppu is delayed by 1 cycle, so need to buffer the data
 
 	Nmi bool
+
+	bgNextTileID      uint8
+	bgNextTileAttrib  uint8
+	bgNextTileLsb     uint8
+	bgNextTileMsb     uint8
+
+	bgShifterPatternLo uint16
+	bgShifterPatternHi uint16
+	bgShifterAttribLo  uint16
+	bgShifterAttribHi  uint16
 }
 
 
@@ -467,11 +477,168 @@ func (p *PPU) Reset() {
 }
 
 
+func (p *PPU) Screen() *[256][240]Pixel {
+	return &p.screen
+}
+
+
 func (p *PPU) Clock() {
-	if p.scanline == -1 && p.cycle == 1 {
-		p.status.verticalBlank = false
+	// === Helper Lambdas ===
+
+	// Horizontal tile scroll
+	incrementScrollX := func() {
+		if p.mask.renderBackground || p.mask.renderSprites {
+			if p.vramAddr.coarseX == 31 {
+				p.vramAddr.coarseX = 0
+				p.vramAddr.nametableX = !p.vramAddr.nametableX
+			} else {
+				p.vramAddr.coarseX++
+			}
+		}
 	}
 
+	// Vertical tile scroll
+	incrementScrollY := func() {
+		if p.mask.renderBackground || p.mask.renderSprites {
+			if p.vramAddr.fineY < 7 {
+				p.vramAddr.fineY++
+			} else {
+				p.vramAddr.fineY = 0
+				if p.vramAddr.coarseY == 29 {
+					p.vramAddr.coarseY = 0
+					p.vramAddr.nametableY = !p.vramAddr.nametableY
+				} else if p.vramAddr.coarseY == 31 {
+					p.vramAddr.coarseY = 0
+				} else {
+					p.vramAddr.coarseY++
+				}
+			}
+		}
+	}
+
+	// Transfer horizontal scroll
+	transferAddressX := func() {
+		if p.mask.renderBackground || p.mask.renderSprites {
+			p.vramAddr.coarseX = p.tramAddr.coarseX
+			p.vramAddr.nametableX = p.tramAddr.nametableX
+		}
+	}
+
+	// Transfer vertical scroll
+	transferAddressY := func() {
+		if p.mask.renderBackground || p.mask.renderSprites {
+			p.vramAddr.coarseY = p.tramAddr.coarseY
+			p.vramAddr.nametableY = p.tramAddr.nametableY
+			p.vramAddr.fineY = p.tramAddr.fineY
+		}
+	}
+
+	loadBackgroundShifters := func() {
+		p.bgShifterPatternLo = (p.bgShifterPatternLo & 0xFF00) | uint16(p.bgNextTileLsb)
+		p.bgShifterPatternHi = (p.bgShifterPatternHi & 0xFF00) | uint16(p.bgNextTileMsb)
+		p.bgShifterAttribLo = (p.bgShifterAttribLo & 0xFF00) | func() uint16 {
+			if (p.bgNextTileAttrib & 0b01) != 0 {
+				return 0xFF
+			}
+			return 0x00
+		}()
+		p.bgShifterAttribHi = (p.bgShifterAttribHi & 0xFF00) | func() uint16 {
+			if (p.bgNextTileAttrib & 0b10) != 0 {
+				return 0xFF
+			}
+			return 0x00
+		}()
+	}
+
+	updateShifters := func() {
+		if p.mask.renderBackground {
+			p.bgShifterPatternLo <<= 1
+			p.bgShifterPatternHi <<= 1
+			p.bgShifterAttribLo <<= 1
+			p.bgShifterAttribHi <<= 1
+		}
+	}
+
+	// === Begin Scanline Logic ===
+
+	if p.scanline >= -1 && p.scanline < 240 {
+		if p.scanline == 0 && p.cycle == 0 {
+			p.cycle = 1 // skip idle cycle on odd frames
+		}
+		if p.scanline == -1 && p.cycle == 1 {
+			p.status.verticalBlank = false
+		}
+
+		if (p.cycle >= 2 && p.cycle < 258) || (p.cycle >= 321 && p.cycle < 338) {
+			updateShifters()
+
+			// Perform different operations depending on which cycle we're on
+			switch (p.cycle - 1) % 8 {
+			case 0:
+				loadBackgroundShifters()
+				p.bgNextTileID = p.PpuRead(0x2000|(p.vramAddr.GetRegisters()&0x0FFF), true)
+			case 2:
+				addr := uint16(0x23C0 |
+					(Btoi16(p.vramAddr.nametableY) << 11) |
+					(Btoi16(p.vramAddr.nametableX) << 10) |
+					((p.vramAddr.coarseY >> 2) << 3) |
+					(p.vramAddr.coarseX >> 2))
+				attribute := p.PpuRead(addr, true)
+				if (p.vramAddr.coarseY & 0x02) != 0 {
+					attribute >>= 4
+				}
+				if (p.vramAddr.coarseX & 0x02) != 0 {
+					attribute >>= 2
+				}
+				p.bgNextTileAttrib = attribute & 0x03
+			case 4:
+				base := p.BackgroundPatternTableBase()
+				p.bgNextTileLsb = p.PpuRead(base+uint16(p.bgNextTileID)*16+uint16(p.vramAddr.fineY), true)
+			case 6:
+				base := p.BackgroundPatternTableBase()
+				p.bgNextTileMsb = p.PpuRead(base+uint16(p.bgNextTileID)*16+uint16(p.vramAddr.fineY)+8, true)
+			case 7:
+				incrementScrollX()
+			}
+		}
+
+		if p.cycle == 256 {
+			incrementScrollY()
+		}
+
+		if p.cycle == 257 {
+			loadBackgroundShifters()
+			transferAddressX()
+		}
+
+		if p.scanline == -1 && p.cycle >= 280 && p.cycle < 305 {
+			transferAddressY()
+		}
+
+		// Rendering pixel to screen
+		if p.cycle > 0 && p.cycle <= 256 && p.scanline >= 0 {
+			var bgPixel, bgPalette uint8
+
+			if p.mask.renderBackground {
+				bitMux := uint16(0x8000 >> p.fineX)
+
+				p0 := uint8((p.bgShifterPatternLo & bitMux) >> (15 - p.fineX))
+				p1 := uint8((p.bgShifterPatternHi & bitMux) >> (15 - p.fineX))
+				bgPixel = (p1 << 1) | p0
+
+				a0 := uint8((p.bgShifterAttribLo & bitMux) >> (15 - p.fineX))
+				a1 := uint8((p.bgShifterAttribHi & bitMux) >> (15 - p.fineX))
+				bgPalette = (a1 << 1) | a0
+			}
+
+			colour := p.GetColourFromPaletteRam(bgPalette, bgPixel)
+			if p.cycle-1 < 256 && p.scanline < 240 {
+				p.screen[p.cycle-1][p.scanline] = colour
+			}
+		}
+	}
+
+	// VBlank start
 	if p.scanline == 241 && p.cycle == 1 {
 		p.status.verticalBlank = true
 		if p.control.enableNmi {
@@ -479,15 +646,15 @@ func (p *PPU) Clock() {
 		}
 	}
 
+	// Advance PPU
 	p.cycle++
-
 	if p.cycle >= 341 {
 		p.cycle = 0
 		p.scanline++
-
 		if p.scanline >= 261 {
 			p.scanline = -1
 			p.FrameComplete = true
 		}
 	}
 }
+
