@@ -1,5 +1,7 @@
 
 */fonts
+*.nes
+pixel.go
 
 go.mod
 go.sum
