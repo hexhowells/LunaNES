@@ -9,8 +9,10 @@ type Bus struct {
 	cpuRam [0x1FFF + 1]uint8
 	Cpu CPU
 	Ppu PPU
+	Controller [2]uint8
 	cart Cartridge
 	nSystemClockCounter uint32  // count of how many clock cycles have passed
+	controllerState[2] uint8
 }
 
 
@@ -81,6 +83,8 @@ func (b *Bus) CpuWrite(addr uint16, data uint8) {
 		b.cpuRam[addr & 0x07FF] = data
 	} else if addr >= 0x2000 && addr <= 0x3FFF {
 		b.Ppu.CpuWrite(addr & 0x0007, data)
+	} else if addr >= 0x4016 && addr <= 0x4017 {
+		b.controllerState[addr & 0x0001] = b.Controller[addr & 0x0001]
 	}
 }
 
@@ -95,6 +99,13 @@ func (b *Bus) CpuRead(addr uint16, bReadOnly bool) uint8 {
 		data = b.cpuRam[addr & 0x07FF]
 	} else if addr >= 0x2000 && addr <= 0x3FFF {
 		data = b.Ppu.CpuRead(addr & 0x0007, bReadOnly)
+	} else if addr >= 0x4016 && addr <= 0x4017 {
+		if (b.controllerState[addr & 0x0001] & 0x80) != 0 {
+		    data = 1
+		} else {
+		    data = 0
+		}
+		b.controllerState[addr & 0x0001] = b.controllerState[addr & 0x0001] << 1
 	}
 
 	return data
