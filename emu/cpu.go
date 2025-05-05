@@ -224,7 +224,7 @@ func (cpu *CPU) NMI() {
 
 
 func (cpu *CPU) Fetch() uint8 {
-	if !(cpu.lookup[cpu.opcode].ModeType == AddrModeIMP) {
+	if cpu.lookup[cpu.opcode].ModeType != AddrModeIMP {
 		cpu.fetched = cpu.Read(cpu.addr_abs)
 	}
 
@@ -431,19 +431,26 @@ func (cpu *CPU) AND() uint8 {
 
 // Instruction: Bitwise Shift Left
 func (cpu *CPU) ASL() uint8 {
-	cpu.Fetch()
-	temp := uint16(cpu.fetched << 1)
-	cpu.SetFlag(C, (temp & 0xFF00) > 0)
-	cpu.SetFlag(Z, (temp & 0x00FF) == 0x00)
-	cpu.SetFlag(N, (temp & 0x80) != 0)
+    var value uint8
 
-	if cpu.lookup[cpu.opcode].ModeType == AddrModeIMP {
-		cpu.A = uint8(temp & 0x00FF)
-	} else {
-		cpu.Write(cpu.addr_abs, uint8(temp & 0x00FF))
-	}
+    if cpu.lookup[cpu.opcode].ModeType == AddrModeIMP {
+        value = cpu.A
+    } else {
+        value = cpu.Fetch()
+    }
 
-	return 0
+    temp := uint16(value) << 1
+    cpu.SetFlag(C, (temp & 0xFF00) > 0)
+    cpu.SetFlag(Z, (temp & 0x00FF) == 0x00)
+    cpu.SetFlag(N, (temp & 0x80) != 0)
+
+    if cpu.lookup[cpu.opcode].ModeType == AddrModeIMP {
+        cpu.A = uint8(temp & 0x00FF)
+    } else {
+        cpu.Write(cpu.addr_abs, uint8(temp & 0x00FF))
+    }
+
+    return 0
 }
 
 // Instruction: Branch if Carry Clear
@@ -857,18 +864,20 @@ func (cpu *CPU) PLP() uint8 {
 }
 
 func (cpu *CPU) ROL() uint8 {
-	cpu.Fetch()
-	temp := uint16(cpu.fetched << 1) | uint16(cpu.GetFlag(C))
-	cpu.SetFlag(C, (temp & 0xFF00) != 0)
-	cpu.SetFlag(Z, (temp & 0x00FF) == 0x0000)
-	cpu.SetFlag(N, (temp & 0x0080) != 0)
-
 	if cpu.lookup[cpu.opcode].ModeType == AddrModeIMP {
-		cpu.A = uint8(temp & 0x00FF)
+		carry := cpu.GetFlag(C)
+		cpu.SetFlag(C, (cpu.A & 0x80) != 0)
+		cpu.A = (cpu.A << 1) | carry
+		cpu.SetFlag(Z, cpu.A == 0x00)
+		cpu.SetFlag(N, (cpu.A & 0x80) != 0)
 	} else {
-		cpu.Write(cpu.addr_abs, uint8(temp & 0x00FF))
+		cpu.Fetch()
+		temp := (cpu.fetched << 1) | cpu.GetFlag(C)
+		cpu.SetFlag(C, (cpu.fetched & 0x80) != 0)
+		cpu.SetFlag(Z, (temp & 0xFF) == 0x00)
+		cpu.SetFlag(N, (temp & 0x80) != 0)
+		cpu.Write(cpu.addr_abs, temp&0xFF)
 	}
-
 	return 0
 }
 
