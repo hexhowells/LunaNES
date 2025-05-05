@@ -19,24 +19,28 @@ func main() {
 	bus.InsertCartridge(cart)
 	bus.Reset()
 
+	// Get device with NES controller's VID/PID
+	devices, err := usb.Enumerate(0x081f, 0xe401)
+	if err != nil {
+		log.Fatalf("Enumeration error: %v", err)
+	}
+	if len(devices) == 0 {
+		log.Fatal("NES controller not found")
+	}
+
+	// Open first found device
+	device, err := devices[0].Open()
+	if err != nil {
+		log.Fatalf("Open error: %v", err)
+	}
+	defer device.Close()
+
+	// 8 bytes buffer for controller input
+	buffer := make([]byte, 8)
+
 	go func() {
-		devices, err := usb.Enumerate(0x081f, 0xe401)
-		if err != nil {
-			log.Fatalf("Enumeration error: %v", err)
-		}
-		if len(devices) == 0 {
-			log.Fatal("NES controller not found")
-		}
-
-		device, err := devices[0].Open()
-		if err != nil {
-			log.Fatalf("Open error: %v", err)
-		}
-		defer device.Close()
-
-		buffer := make([]byte, 8)
-
 		for {
+			// Read controller state
 			count, err := device.Read(buffer)
 			if err != nil {
 				log.Printf("Read error: %v", err)
@@ -44,6 +48,7 @@ func main() {
 				continue
 			}
 
+			// Fill controller buffer on bus with input data
 			if count > 0 {
 				var controllerState byte = 0x00
 
