@@ -11,7 +11,7 @@ import (
 
 func main() {
 	bus := emu.NewBus()
-	cart := emu.NewCartridge("../ROMS/IceClimber.nes")
+	cart := emu.NewCartridge("../ROMS/nestest.nes")
 	if cart == nil {
 		log.Fatalln("Error: cartridge could not be loaded")
 	}
