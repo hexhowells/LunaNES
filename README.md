@@ -6,3 +6,5 @@
 
 ### Currently supported mappers
 - [Mapper 0](https://nesdir.github.io/mapper0.html)
+- Mapper 1 (planned)
+- Mapper 4 (planned)
