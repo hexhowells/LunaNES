@@ -11,7 +11,7 @@ import (
 
 func main() {
 	bus := emu.NewBus()
-	cart := emu.NewCartridge("../ROMS/nestest.nes")
+	cart := emu.NewCartridge("../ROMS/IceClimber.nes")
 	if cart == nil {
 		log.Fatalln("Error: cartridge could not be loaded")
 	}
@@ -47,7 +47,6 @@ func main() {
 			if count > 0 {
 				var controllerState byte = 0x00
 
-				// Mapping bits similar to C++ code
 				if buffer[5] == 47 || buffer[5] == 63 { // A or A+B
 					controllerState |= 0x80
 				}
