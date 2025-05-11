@@ -59,7 +59,8 @@ func (b *Bus) Clock() {
 				}
 			} else {
 				if b.nSystemClockCounter % 2 == 0 { // even clock cycles
-					b.dmaData = b.CpuRead(uint16(b.dmaPage << 8 | b.dmaAddr), true)
+					addr := (uint16(b.dmaPage) << 8) | uint16(b.dmaAddr)
+					b.dmaData = b.CpuRead(addr, true)
 				} else {  // odd clock cycles
 					b.Ppu.Oam[b.dmaAddr] = b.dmaData
 					b.dmaAddr++
