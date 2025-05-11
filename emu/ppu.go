@@ -122,6 +122,25 @@ func (lr *loopyRegister) GetRegisters() uint16 {
 }
 
 
+type sObjectAttributeEntry struct {
+	y uint8
+	id uint8
+	attribute uint8
+	x uint8
+}
+
+
+func (p *PPU) GetOAMEntry(index int) sObjectAttributeEntry {
+	base := index * 4
+	return sObjectAttributeEntry{
+		y:         p.Oam[base+0],
+		id:        p.Oam[base+1],
+		attribute: p.Oam[base+2],
+		x:         p.Oam[base+3],
+	}
+}
+
+
 type PPU struct {
 	cart Cartridge
 
@@ -142,6 +161,9 @@ type PPU struct {
 	status *status
 	mask *mask
 	control *control
+
+	Oam [256]uint8
+	OamAddr uint8
 
 	vramAddr *loopyRegister
 	tramAddr *loopyRegister
@@ -306,6 +328,7 @@ func (p *PPU) CpuRead(addr uint16, bReadOnly bool) uint8 {
 		case 0x0003:  // OAM address
 			break
 		case 0x0004:  // OAM data
+			data = p.Oam[p.OamAddr]
 			break
 		case 0x0005:  // scroll
 			break
@@ -343,8 +366,10 @@ func (p *PPU) CpuWrite(addr uint16, data uint8) {
 		case 0x0002:  // status
 			break
 		case 0x0003:  // OAM address
+			p.OamAddr = data
 			break
 		case 0x0004:  // OAM data
+			p.Oam[p.OamAddr] = data
 			break
 		case 0x0005:  // scroll
 			if p.addressLatch == 0 {
@@ -471,6 +496,7 @@ func (p *PPU) Reset() {
 	p.control = &control{}
 	p.vramAddr = &loopyRegister{}
 	p.tramAddr = &loopyRegister{}
+	p.OamAddr = 0x00
 
 	p.addressLatch = 0x00
 	p.ppuDataBuffer = 0x00

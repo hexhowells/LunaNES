@@ -13,6 +13,11 @@ type Bus struct {
 	cart Cartridge
 	nSystemClockCounter uint32  // count of how many clock cycles have passed
 	controllerState[2] uint8
+	dmaPage uint8
+	dmaAddr uint8
+	dmaData uint8
+	dmaTransfer bool  // flag indicating if DMA is happening
+	dmaDummy bool
 }
 
 
@@ -44,8 +49,30 @@ func (b *Bus) Reset() {
 func (b *Bus) Clock() {
 	b.Ppu.Clock()
 
+	// clock CPU 3 times slower then PPU
 	if b.nSystemClockCounter % 3 == 0 {
-		b.Cpu.Clock()
+		// lock CPU during DMA transfer operation
+		if b.dmaTransfer {
+			if b.dmaDummy {  // wait for correct clock cycle to begin DMA transfer
+				if b.nSystemClockCounter % 2 == 1 {
+					b.dmaDummy = false
+				}
+			} else {
+				if b.nSystemClockCounter % 2 == 0 { // even clock cycles
+					b.dmaData = b.CpuRead(uint16(b.dmaPage << 8 | b.dmaAddr), true)
+				} else {  // odd clock cycles
+					b.Ppu.Oam[b.dmaAddr] = b.dmaData
+					b.dmaAddr++
+
+					if b.dmaAddr == 0x00 {  // DMA transfer complete
+						b.dmaTransfer = false
+						b.dmaDummy = true
+					}
+				}
+			}
+		} else {  // clock CPU if DMA transfer is not taking place
+			b.Cpu.Clock()
+		}
 	}
 
 	if b.Ppu.Nmi {
@@ -83,6 +110,10 @@ func (b *Bus) CpuWrite(addr uint16, data uint8) {
 		b.cpuRam[addr & 0x07FF] = data
 	} else if addr >= 0x2000 && addr <= 0x3FFF {
 		b.Ppu.CpuWrite(addr & 0x0007, data)
+	} else if addr == 0x4014 {
+		b.dmaPage = data
+		b.dmaAddr = 0x00
+		b.dmaTransfer = true
 	} else if addr >= 0x4016 && addr <= 0x4017 {
 		b.controllerState[addr & 0x0001] = b.Controller[addr & 0x0001]
 	}
