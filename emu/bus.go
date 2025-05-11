@@ -43,6 +43,11 @@ func (b *Bus) Reset() {
 	b.Ppu.Reset()
 	b.Cpu.Reset()
 	b.nSystemClockCounter = 0
+	b.dmaPage = 0x00
+	b.dmaAddr = 0x00
+	b.dmaData = 0x00
+	b.dmaDummy = true
+	b.dmaTransfer = false
 }
 
 
