@@ -165,6 +165,9 @@ type PPU struct {
 	Oam [256]uint8
 	OamAddr uint8
 
+	spriteScanLine [8]sObjectAttributeEntry
+	spriteCount uint8
+
 	vramAddr *loopyRegister
 	tramAddr *loopyRegister
 
@@ -184,6 +187,11 @@ type PPU struct {
 	bgShifterPatternHi uint16
 	bgShifterAttribLo  uint16
 	bgShifterAttribHi  uint16
+
+	spriteShifterPatternLo [8]uint8
+	spriteShifterPatternHi [8]uint8
+	bSpriteZeroHitPossible bool
+	bSpriteZeroBeingRendered bool
 }
 
 
@@ -288,8 +296,8 @@ func (p *PPU) GetPatternTable(i uint8, palette uint8) {
 
 					// Set the pixel value of the tile
 					p.sprPatternTable[i].SetPixel(
-						uint8(nTileY * 8 + row), 
 						uint8(nTileX * 8 + (7 - col)), 
+						uint8(nTileY * 8 + row),
 						p.GetColourFromPaletteRam(palette, pixel),
 					)
 				}
@@ -370,6 +378,7 @@ func (p *PPU) CpuWrite(addr uint16, data uint8) {
 			break
 		case 0x0004:  // OAM data
 			p.Oam[p.OamAddr] = data
+			p.OamAddr = (p.OamAddr + 1) & 0xFF
 			break
 		case 0x0005:  // scroll
 			if p.addressLatch == 0 {
@@ -509,9 +518,12 @@ func (p *PPU) Screen() *[256][240]Pixel {
 
 
 func (p *PPU) Clock() {
-	// === Helper Lambdas ===
 
-	// Horizontal tile scroll
+	//--------------------------------------------------------------------
+	// inline helpers
+	//--------------------------------------------------------------------
+
+	// increment scroll horizontally 1 tile (coarse X)
 	incrementScrollX := func() {
 		if p.mask.renderBackground || p.mask.renderSprites {
 			if p.vramAddr.coarseX == 31 {
@@ -523,56 +535,50 @@ func (p *PPU) Clock() {
 		}
 	}
 
-	// Vertical tile scroll
+	// increment scroll vertically 1 scanline (fine Y + coarse Y)
 	incrementScrollY := func() {
 		if p.mask.renderBackground || p.mask.renderSprites {
 			if p.vramAddr.fineY < 7 {
 				p.vramAddr.fineY++
 			} else {
 				p.vramAddr.fineY = 0
-				if p.vramAddr.coarseY == 29 {
+				switch p.vramAddr.coarseY {
+				case 29:
 					p.vramAddr.coarseY = 0
 					p.vramAddr.nametableY = !p.vramAddr.nametableY
-				} else if p.vramAddr.coarseY == 31 {
+				case 31:
 					p.vramAddr.coarseY = 0
-				} else {
+				default:
 					p.vramAddr.coarseY++
 				}
 			}
 		}
 	}
 
-	// Transfer horizontal scroll
 	transferAddressX := func() {
 		if p.mask.renderBackground || p.mask.renderSprites {
 			p.vramAddr.coarseX = p.tramAddr.coarseX
 			p.vramAddr.nametableX = p.tramAddr.nametableX
 		}
 	}
-
-	// Transfer vertical scroll
 	transferAddressY := func() {
 		if p.mask.renderBackground || p.mask.renderSprites {
-			p.vramAddr.coarseY = p.tramAddr.coarseY
+			p.vramAddr.fineY      = p.tramAddr.fineY
+			p.vramAddr.coarseY    = p.tramAddr.coarseY
 			p.vramAddr.nametableY = p.tramAddr.nametableY
-			p.vramAddr.fineY = p.tramAddr.fineY
 		}
 	}
 
 	loadBackgroundShifters := func() {
 		p.bgShifterPatternLo = (p.bgShifterPatternLo & 0xFF00) | uint16(p.bgNextTileLsb)
 		p.bgShifterPatternHi = (p.bgShifterPatternHi & 0xFF00) | uint16(p.bgNextTileMsb)
-		p.bgShifterAttribLo = (p.bgShifterAttribLo & 0xFF00) | func() uint16 {
-			if (p.bgNextTileAttrib & 0b01) != 0 {
-				return 0xFF
-			}
-			return 0x00
+		p.bgShifterAttribLo  = (p.bgShifterAttribLo & 0xFF00) | func() uint16 {
+			if (p.bgNextTileAttrib & 0x01) != 0 { return 0xFF }
+			return 0
 		}()
-		p.bgShifterAttribHi = (p.bgShifterAttribHi & 0xFF00) | func() uint16 {
-			if (p.bgNextTileAttrib & 0b10) != 0 {
-				return 0xFF
-			}
-			return 0x00
+		p.bgShifterAttribHi  = (p.bgShifterAttribHi & 0xFF00) | func() uint16 {
+			if (p.bgNextTileAttrib & 0x02) != 0 { return 0xFF }
+			return 0
 		}()
 	}
 
@@ -580,49 +586,68 @@ func (p *PPU) Clock() {
 		if p.mask.renderBackground {
 			p.bgShifterPatternLo <<= 1
 			p.bgShifterPatternHi <<= 1
-			p.bgShifterAttribLo <<= 1
-			p.bgShifterAttribHi <<= 1
+			p.bgShifterAttribLo  <<= 1
+			p.bgShifterAttribHi  <<= 1
+		}
+
+		if p.mask.renderSprites && p.cycle >= 1 && p.cycle < 258 {
+			for i := 0; i < int(p.spriteCount); i++ {
+				if p.spriteScanLine[i].x > 0 {
+					p.spriteScanLine[i].x--
+				} else {
+					p.spriteShifterPatternLo[i] <<= 1
+					p.spriteShifterPatternHi[i] <<= 1
+				}
+			}
 		}
 	}
 
-	// === Begin Scanline Logic ===
-
+	//--------------------------------------------------------------------
+	// Visible scanlines + pre‑render (-1 .. 239)
+	//--------------------------------------------------------------------
 	if p.scanline >= -1 && p.scanline < 240 {
+
+		// odd‑frame idle‑cycle skip
 		if p.scanline == 0 && p.cycle == 0 {
-			p.cycle = 1 // skip idle cycle on odd frames
+			p.cycle = 1
 		}
+
+		// clear VBlank at first pre‑render line
 		if p.scanline == -1 && p.cycle == 1 {
 			p.status.verticalBlank = false
 		}
 
+		// ----------------------------------------------------------------
+		// Background pipeline – fetches & shifters
+		// ----------------------------------------------------------------
 		if (p.cycle >= 2 && p.cycle < 258) || (p.cycle >= 321 && p.cycle < 338) {
+
 			updateShifters()
 
-			// Perform different operations depending on which cycle we're on
 			switch (p.cycle - 1) % 8 {
 			case 0:
 				loadBackgroundShifters()
 				p.bgNextTileID = p.PpuRead(0x2000|(p.vramAddr.GetRegisters()&0x0FFF), true)
+
 			case 2:
-				addr := uint16(0x23C0 |
+				attrAddr := uint16(0x23C0 |
 					(Btoi16(p.vramAddr.nametableY) << 11) |
 					(Btoi16(p.vramAddr.nametableX) << 10) |
 					((p.vramAddr.coarseY >> 2) << 3) |
 					(p.vramAddr.coarseX >> 2))
-				attribute := p.PpuRead(addr, true)
-				if (p.vramAddr.coarseY & 0x02) != 0 {
-					attribute >>= 4
-				}
-				if (p.vramAddr.coarseX & 0x02) != 0 {
-					attribute >>= 2
-				}
-				p.bgNextTileAttrib = attribute & 0x03
+				attr := p.PpuRead(attrAddr, true)
+				if p.vramAddr.coarseY&0x02 != 0 { attr >>= 4 }
+				if p.vramAddr.coarseX&0x02 != 0 { attr >>= 2 }
+				p.bgNextTileAttrib = attr & 0x03
+
 			case 4:
 				base := p.BackgroundPatternTableBase()
 				p.bgNextTileLsb = p.PpuRead(base+uint16(p.bgNextTileID)*16+uint16(p.vramAddr.fineY), true)
+
 			case 6:
 				base := p.BackgroundPatternTableBase()
 				p.bgNextTileMsb = p.PpuRead(base+uint16(p.bgNextTileID)*16+uint16(p.vramAddr.fineY)+8, true)
+
 			case 7:
 				incrementScrollX()
 			}
@@ -631,40 +656,166 @@ func (p *PPU) Clock() {
 		if p.cycle == 256 {
 			incrementScrollY()
 		}
-
 		if p.cycle == 257 {
 			loadBackgroundShifters()
 			transferAddressX()
+
+			// Sprite evaluation initialise
+			for i := range p.spriteScanLine {
+				p.spriteScanLine[i] = sObjectAttributeEntry{}
+				p.spriteShifterPatternLo[i] = 0
+				p.spriteShifterPatternHi[i] = 0
+			}
+		}
+
+		if p.cycle == 338 || p.cycle == 340 {
+			p.bgNextTileID = p.PpuRead(0x2000|(p.vramAddr.GetRegisters()&0x0FFF), true)
 		}
 
 		if p.scanline == -1 && p.cycle >= 280 && p.cycle < 305 {
 			transferAddressY()
 		}
 
-		// Rendering pixel to screen
+		// ----------------------------------------------------------------
+		// Sprite evaluation (cycle 257, visible scanlines only)
+		// ----------------------------------------------------------------
+		if p.cycle == 257 && p.scanline >= 0 {
+
+			p.spriteCount = 0
+			p.bSpriteZeroHitPossible = false
+			for i := range p.spriteShifterPatternLo {
+				p.spriteShifterPatternLo[i] = 0
+				p.spriteShifterPatternHi[i] = 0
+			}
+
+			height := int16(8)
+			if p.control.spriteSize {
+				height = 16
+			}
+
+			for o := 0; o < 64 && p.spriteCount < 8; o++ {
+				y := int16(p.Oam[o*4+0])
+				diff := int16(p.scanline) - y - 1
+				if diff >= 0 && diff < height {
+					if o == 0 {
+						p.bSpriteZeroHitPossible = true
+					}
+					p.spriteScanLine[p.spriteCount] = p.GetOAMEntry(o)
+					p.spriteCount++
+				}
+			}
+			p.status.spriteOverflow = p.spriteCount > 8
+		}
+
+		// ----------------------------------------------------------------
+		// Load sprite pattern shifters (cycle 340)
+		// ----------------------------------------------------------------
+		if p.cycle == 340 {
+			for i := 0; i < int(p.spriteCount); i++ {
+				e := p.spriteScanLine[i]
+				row := int16(p.scanline) - int16(e.y) - 1
+
+				if e.attribute&0x80 != 0 { // vertical flip
+					row ^= 0x07
+					if p.control.spriteSize && row >= 8 {
+						row ^= 0x07
+					}
+				}
+
+				var addr uint16
+				if !p.control.spriteSize { // 8×8
+					addr = Btoi16(p.control.patternSprite)<<12 |
+						uint16(e.id)<<4 | uint16(row&0x07)
+				} else { // 8×16
+					tile := e.id & 0xFE
+					if row >= 8 {
+						tile++
+					}
+					table := e.id & 0x01
+					addr = uint16(table)<<12 | uint16(tile)<<4 | uint16(row&0x07)
+				}
+
+				p.spriteShifterPatternLo[i] = p.PpuRead(addr, false)
+				p.spriteShifterPatternHi[i] = p.PpuRead(addr+8, false)
+
+				if e.attribute&0x40 != 0 { // horizontal flip
+					p.spriteShifterPatternLo[i] = flipByte(p.spriteShifterPatternLo[i])
+					p.spriteShifterPatternHi[i] = flipByte(p.spriteShifterPatternHi[i])
+				}
+			}
+		}
+
+		//--------------------------------------------------------------------
+		// Visible pixel compositing            (dots 1‑256 on visible lines)
+		//--------------------------------------------------------------------
 		if p.cycle > 0 && p.cycle <= 256 && p.scanline >= 0 {
+
+			// ------------ background pixel -------------
 			var bgPixel, bgPalette uint8
-
 			if p.mask.renderBackground {
-				bitMux := uint16(0x8000 >> p.fineX)
-
-				p0 := uint8((p.bgShifterPatternLo & bitMux) >> (15 - p.fineX))
-				p1 := uint8((p.bgShifterPatternHi & bitMux) >> (15 - p.fineX))
-				bgPixel = (p1 << 1) | p0
-
-				a0 := uint8((p.bgShifterAttribLo & bitMux) >> (15 - p.fineX))
-				a1 := uint8((p.bgShifterAttribHi & bitMux) >> (15 - p.fineX))
-				bgPalette = (a1 << 1) | a0
+				bit := uint16(0x8000 >> p.fineX)
+				if (p.bgShifterPatternLo & bit) != 0 { bgPixel |= 1 }
+				if (p.bgShifterPatternHi & bit) != 0 { bgPixel |= 2 }
+				if (p.bgShifterAttribLo  & bit) != 0 { bgPalette |= 1 }
+				if (p.bgShifterAttribHi  & bit) != 0 { bgPalette |= 2 }
 			}
 
-			colour := p.GetColourFromPaletteRam(bgPalette, bgPixel)
-			if p.cycle-1 < 256 && p.scanline < 240 {
-				p.screen[p.cycle-1][p.scanline] = colour
+			// ------------ foreground / sprite pixel -------------
+			var fgPixel, fgPalette uint8
+			fgPriorityFront := false // true -> sprite in front of BG
+			if p.mask.renderSprites {
+				for i := 0; i < int(p.spriteCount); i++ {
+					if p.spriteScanLine[i].x == 0 {
+						lo := (p.spriteShifterPatternLo[i] & 0x80) >> 7
+						hi := (p.spriteShifterPatternHi[i] & 0x80) >> 6
+						fgPixel = hi | lo
+						if fgPixel != 0 {
+							fgPalette = (p.spriteScanLine[i].attribute & 0x03) + 0x04
+							fgPriorityFront = (p.spriteScanLine[i].attribute & 0x20) == 0
+
+							if i == 0 && p.bSpriteZeroHitPossible &&
+								bgPixel != 0 && fgPixel != 0 {
+								if p.mask.renderBackground && p.mask.renderSprites {
+									leftOK := !(p.mask.renderBackgroundLeft || p.mask.renderSpritesLeft)
+									if (leftOK && p.cycle >= 9 && p.cycle < 258) ||
+										(!leftOK && p.cycle >= 1 && p.cycle < 258) {
+										p.status.spriteZeroHit = true
+									}
+								}
+							}
+							break
+						}
+					}
+				}
 			}
+
+			// ------------ final pixel selection -------------
+			var finalPixel, finalPalette uint8
+			switch {
+			case bgPixel == 0 && fgPixel == 0:
+				finalPixel, finalPalette = 0, 0
+			case bgPixel == 0 && fgPixel > 0:
+				finalPixel, finalPalette = fgPixel, fgPalette
+			case bgPixel > 0 && fgPixel == 0:
+				finalPixel, finalPalette = bgPixel, bgPalette
+			default: // both non‑zero
+				if fgPriorityFront {
+					finalPixel, finalPalette = fgPixel, fgPalette
+				} else {
+					finalPixel, finalPalette = bgPixel, bgPalette
+				}
+			}
+
+			p.screen[p.cycle-1][p.scanline] =
+				p.GetColourFromPaletteRam(finalPalette, finalPixel)
 		}
 	}
 
-	// VBlank start
+	
+
+	//--------------------------------------------------------------------
+	// VBlank (scanlines 241‑260)
+	//--------------------------------------------------------------------
 	if p.scanline == 241 && p.cycle == 1 {
 		p.status.verticalBlank = true
 		if p.control.enableNmi {
@@ -672,7 +823,9 @@ func (p *PPU) Clock() {
 		}
 	}
 
-	// Advance PPU
+	//--------------------------------------------------------------------
+	// advance clocks
+	//--------------------------------------------------------------------
 	p.cycle++
 	if p.cycle >= 341 {
 		p.cycle = 0
@@ -684,3 +837,10 @@ func (p *PPU) Clock() {
 	}
 }
 
+// flipByte reverses the bit order of b (helper for H‑flip)
+func flipByte(b uint8) uint8 {
+	b = (b&0xF0)>>4 | (b&0x0F)<<4
+	b = (b&0xCC)>>2 | (b&0x33)<<2
+	b = (b&0xAA)>>1 | (b&0x55)<<1
+	return b
+}
