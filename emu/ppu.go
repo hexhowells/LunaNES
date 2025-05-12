@@ -509,6 +509,9 @@ func (p *PPU) Reset() {
 
 	p.addressLatch = 0x00
 	p.ppuDataBuffer = 0x00
+
+	p.bSpriteZeroHitPossible = false
+	p.bSpriteZeroBeingRendered = false
 }
 
 
@@ -523,7 +526,7 @@ func (p *PPU) Clock() {
 	// inline helpers
 	//--------------------------------------------------------------------
 
-	// increment scroll horizontally 1 tile (coarse X)
+	// increment scroll horizontally 1 tile
 	incrementScrollX := func() {
 		if p.mask.renderBackground || p.mask.renderSprites {
 			if p.vramAddr.coarseX == 31 {
@@ -535,7 +538,7 @@ func (p *PPU) Clock() {
 		}
 	}
 
-	// increment scroll vertically 1 scanline (fine Y + coarse Y)
+	// increment scroll vertically 1 scanline
 	incrementScrollY := func() {
 		if p.mask.renderBackground || p.mask.renderSprites {
 			if p.vramAddr.fineY < 7 {
@@ -603,7 +606,7 @@ func (p *PPU) Clock() {
 	}
 
 	//--------------------------------------------------------------------
-	// Visible scanlines + pre‑render (-1 .. 239)
+	// Visible scanlines + pre‑render
 	//--------------------------------------------------------------------
 	if p.scanline >= -1 && p.scanline < 240 {
 
@@ -615,6 +618,8 @@ func (p *PPU) Clock() {
 		// clear VBlank at first pre‑render line
 		if p.scanline == -1 && p.cycle == 1 {
 			p.status.verticalBlank = false
+			p.status.spriteZeroHit = false
+			p.status.spriteOverflow = false
 		}
 
 		// ----------------------------------------------------------------
@@ -677,7 +682,7 @@ func (p *PPU) Clock() {
 		}
 
 		// ----------------------------------------------------------------
-		// Sprite evaluation (cycle 257, visible scanlines only)
+		// Sprite evaluation
 		// ----------------------------------------------------------------
 		if p.cycle == 257 && p.scanline >= 0 {
 
@@ -693,14 +698,14 @@ func (p *PPU) Clock() {
 				height = 16
 			}
 
-			for o := 0; o < 64 && p.spriteCount < 8; o++ {
-				y := int16(p.Oam[o*4+0])
-				diff := int16(p.scanline) - y - 1
+			for nOamEntry := 0; nOamEntry < 64 && p.spriteCount < 8; nOamEntry++ {
+				y := int16(p.Oam[nOamEntry*4+0])
+				diff := int16(p.scanline) - y
 				if diff >= 0 && diff < height {
-					if o == 0 {
+					if nOamEntry == 0 {
 						p.bSpriteZeroHitPossible = true
 					}
-					p.spriteScanLine[p.spriteCount] = p.GetOAMEntry(o)
+					p.spriteScanLine[p.spriteCount] = p.GetOAMEntry(nOamEntry)
 					p.spriteCount++
 				}
 			}
@@ -708,12 +713,12 @@ func (p *PPU) Clock() {
 		}
 
 		// ----------------------------------------------------------------
-		// Load sprite pattern shifters (cycle 340)
+		// Load sprite pattern shifters
 		// ----------------------------------------------------------------
 		if p.cycle == 340 {
 			for i := 0; i < int(p.spriteCount); i++ {
 				e := p.spriteScanLine[i]
-				row := int16(p.scanline) - int16(e.y) - 1
+				row := int16(p.scanline) - int16(e.y)
 
 				if e.attribute&0x80 != 0 { // vertical flip
 					row ^= 0x07
@@ -746,7 +751,7 @@ func (p *PPU) Clock() {
 		}
 
 		//--------------------------------------------------------------------
-		// Visible pixel compositing            (dots 1‑256 on visible lines)
+		// Visible pixel compositing
 		//--------------------------------------------------------------------
 		if p.cycle > 0 && p.cycle <= 256 && p.scanline >= 0 {
 
@@ -764,6 +769,8 @@ func (p *PPU) Clock() {
 			var fgPixel, fgPalette uint8
 			fgPriorityFront := false // true -> sprite in front of BG
 			if p.mask.renderSprites {
+				p.bSpriteZeroBeingRendered = false
+
 				for i := 0; i < int(p.spriteCount); i++ {
 					if p.spriteScanLine[i].x == 0 {
 						lo := (p.spriteShifterPatternLo[i] & 0x80) >> 7
@@ -775,6 +782,8 @@ func (p *PPU) Clock() {
 
 							if i == 0 && p.bSpriteZeroHitPossible &&
 								bgPixel != 0 && fgPixel != 0 {
+								p.bSpriteZeroBeingRendered = true
+
 								if p.mask.renderBackground && p.mask.renderSprites {
 									leftOK := !(p.mask.renderBackgroundLeft || p.mask.renderSpritesLeft)
 									if (leftOK && p.cycle >= 9 && p.cycle < 258) ||
@@ -804,7 +813,23 @@ func (p *PPU) Clock() {
 				} else {
 					finalPixel, finalPalette = bgPixel, bgPalette
 				}
+
+				if p.bSpriteZeroHitPossible && p.bSpriteZeroBeingRendered &&
+				   p.mask.renderBackground && p.mask.renderSprites {
+
+				    if !(p.mask.renderBackgroundLeft || p.mask.renderSpritesLeft) {
+				        if p.cycle >= 9 && p.cycle < 258 {
+				            p.status.spriteZeroHit = true
+				        }
+				    } else {
+				        if p.cycle >= 1 && p.cycle < 258 {
+				            p.status.spriteZeroHit = true
+				        }
+				    }
+				}
 			}
+
+			
 
 			p.screen[p.cycle-1][p.scanline] =
 				p.GetColourFromPaletteRam(finalPalette, finalPixel)
@@ -814,7 +839,7 @@ func (p *PPU) Clock() {
 	
 
 	//--------------------------------------------------------------------
-	// VBlank (scanlines 241‑260)
+	// VBlank
 	//--------------------------------------------------------------------
 	if p.scanline == 241 && p.cycle == 1 {
 		p.status.verticalBlank = true

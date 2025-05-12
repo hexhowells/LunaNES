@@ -120,6 +120,7 @@ func (b *Bus) CpuWrite(addr uint16, data uint8) {
 		b.dmaPage = data
 		b.dmaAddr = 0x00
 		b.dmaTransfer = true
+		b.dmaDummy = true
 	} else if addr >= 0x4016 && addr <= 0x4017 {
 		b.controllerState[addr & 0x0001] = b.Controller[addr & 0x0001]
 	}
