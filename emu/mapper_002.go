@@ -1,6 +1,5 @@
 package emu
 
-import ("log")
 
 type Mapper002 struct {
 	Mapper
@@ -9,7 +8,6 @@ type Mapper002 struct {
 }
 
 func NewMapper_002(prgBanks uint8, chrBanks uint8) *Mapper002 {
-	log.Printf("Initializing Mapper 002 with %d PRG banks, %d CHR banks\n", prgBanks, chrBanks)
 	mapper := Mapper002{}
 	mapper.numPrgBanks = prgBanks
 	mapper.numChrBanks = chrBanks
@@ -19,15 +17,15 @@ func NewMapper_002(prgBanks uint8, chrBanks uint8) *Mapper002 {
 
 func (mapper *Mapper002) CpuMapRead(addr uint16, mapped_addr *uint32, data *uint8) bool {
 	if addr >= 0x8000 && addr <= 0xBFFF {
-		*mapped_addr = uint32(mapper.nPRGBankSelectLo)*0x4000 + uint32(addr&0x3FFF)
-		log.Printf("[CpuMapRead] addr: %04X → Lo bank: %d, mapped_addr: %d\n", addr, mapper.nPRGBankSelectLo, *mapped_addr)
+		*mapped_addr = uint32( uint16(mapper.nPRGBankSelectLo) * 0x4000 + (addr & 0x3FFF) )
 		return true
 	}
+
 	if addr >= 0xC000 && addr <= 0xFFFF {
-		*mapped_addr = uint32(mapper.nPRGBankSelectHi)*0x4000 + uint32(addr&0x3FFF)
-		log.Printf("[CpuMapRead] addr: %04X → Hi bank: %d, mapped_addr: %d\n", addr, mapper.nPRGBankSelectHi, *mapped_addr)
+		*mapped_addr = uint32( uint16(mapper.nPRGBankSelectHi) * 0x4000 + (addr & 0x3FFF) )
 		return true
 	}
+
 	return false
 }
 
