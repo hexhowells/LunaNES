@@ -23,5 +23,5 @@ LunaNES is an NES emulator written in go. It is fully functional with mapper 0 w
 
 ### Game Screenshots
 <p align="center">
-  <img src="https://github.com/hexhowells/LunaNES/blob/main/games.png" width=70%>
+  <img src="https://github.com/hexhowells/LunaNES/blob/main/games.png" width=85%>
 </p>
