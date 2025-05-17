@@ -13,7 +13,7 @@ func NewMapper_000(prgBanks uint8, chrBanks uint8) *Mapper000 {
 	return &mapper
 }
 
-func (mapper *Mapper) CpuMapRead(addr uint16, mapped_addr *uint32) bool {
+func (mapper *Mapper000) CpuMapRead(addr uint16, mapped_addr *uint32, data *uint8) bool {
 	if addr >= 0x8000 && addr <= 0xFFFF {
 		if mapper.numPrgBanks > 1 {
 			*mapped_addr = uint32(addr & 0x7FFF)
@@ -26,7 +26,7 @@ func (mapper *Mapper) CpuMapRead(addr uint16, mapped_addr *uint32) bool {
 }
 
 
-func (mapper *Mapper) CpuMapWrite(addr uint16, mapped_addr *uint32) bool {
+func (mapper *Mapper000) CpuMapWrite(addr uint16, mapped_addr *uint32, data uint8) bool {
 	if addr >= 0x8000 && addr <= 0xFFFF {
 		if mapper.numPrgBanks > 1 {
 			*mapped_addr = uint32(addr & 0x7FFF)
@@ -39,7 +39,7 @@ func (mapper *Mapper) CpuMapWrite(addr uint16, mapped_addr *uint32) bool {
 }
 
 
-func (mapper *Mapper) PpuMapRead(addr uint16, mapped_addr *uint32) bool {
+func (mapper *Mapper000) PpuMapRead(addr uint16, mapped_addr *uint32) bool {
 	if addr >= 0x0000 && addr <= 0x1FFF {
 		*mapped_addr = uint32(addr)
 		return true
@@ -48,7 +48,7 @@ func (mapper *Mapper) PpuMapRead(addr uint16, mapped_addr *uint32) bool {
 }
 
 
-func (mapper *Mapper) PpuMapWrite(addr uint16, mapped_addr *uint32) bool {
+func (mapper *Mapper000) PpuMapWrite(addr uint16, mapped_addr *uint32) bool {
 	if addr >= 0x0000 && addr <= 0x1FFF {
 		if mapper.numChrBanks == 0 {
 			*mapped_addr = uint32(addr)
@@ -56,4 +56,7 @@ func (mapper *Mapper) PpuMapWrite(addr uint16, mapped_addr *uint32) bool {
 		}
 	}
 	return false
+}
+
+func (mapper *Mapper000) Reset() {
 }
