@@ -15,18 +15,18 @@ func NewMapper_002(prgBanks uint8, chrBanks uint8) *Mapper002 {
 	return &mapper
 }
 
-func (mapper *Mapper002) CpuMapRead(addr uint16, mapped_addr *uint32, data *uint8) bool {
-	if addr >= 0x8000 && addr <= 0xBFFF {
-		*mapped_addr = uint32( uint16(mapper.nPRGBankSelectLo) * 0x4000 + (addr & 0x3FFF) )
-		return true
-	}
+func (m *Mapper002) CpuMapRead(addr uint16, mapped_addr *uint32, data *uint8) bool {
+    if addr >= 0x8000 && addr <= 0xBFFF {
+        *mapped_addr = uint32(m.nPRGBankSelectLo)*0x4000 + uint32(addr&0x3FFF)
+        return true
+    }
 
-	if addr >= 0xC000 && addr <= 0xFFFF {
-		*mapped_addr = uint32( uint16(mapper.nPRGBankSelectHi) * 0x4000 + (addr & 0x3FFF) )
-		return true
-	}
+    if addr >= 0xC000 && addr <= 0xFFFF {
+        *mapped_addr = uint32(m.nPRGBankSelectHi)*0x4000 + uint32(addr&0x3FFF)
+        return true
+    }
 
-	return false
+    return false
 }
 
 
@@ -59,5 +59,9 @@ func (mapper *Mapper002) PpuMapWrite(addr uint16, mapped_addr *uint32) bool {
 
 func (mapper *Mapper002) Reset() {
 	mapper.nPRGBankSelectLo = 0
-	mapper.nPRGBankSelectHi = mapper.numPrgBanks - 1
+	if mapper.numPrgBanks > 0 {
+		mapper.nPRGBankSelectHi = mapper.numPrgBanks - 1
+	} else {
+		mapper.nPRGBankSelectHi = 0
+	}
 }

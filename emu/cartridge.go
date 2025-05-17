@@ -3,9 +3,9 @@ package emu
 import (
 	"os"
 	"encoding/binary"
+	"io"
 	"log"
 )
-
 
 const (
 	HORIZONTAL = iota
@@ -13,7 +13,6 @@ const (
 	ONESCREEN_LO
 	ONESCREEN_HI
 )
-
 
 type Cartridge struct {
 	prgMemory []uint8  // program memory
@@ -40,13 +39,8 @@ type sHeader struct {
 	Unused [5]byte  // padding
 }
 
-
 func NewCartridge(filename string) *Cartridge {
 	cart := Cartridge{}
-	cart.mapperID = 0
-	cart.numPrgBanks = 0
-	cart.numChrBanks = 0
-
 	file, err := os.Open(filename)
 	if err != nil {
 		log.Println("Error: could not open ROM file")
@@ -55,7 +49,7 @@ func NewCartridge(filename string) *Cartridge {
 	}
 	defer file.Close()
 
-	// Read file header
+	// Read 16-byte iNES header
 	err = binary.Read(file, binary.LittleEndian, &cart.header)
 	if err != nil {
 		log.Println("Error: could not read ROM file header")
@@ -63,120 +57,125 @@ func NewCartridge(filename string) *Cartridge {
 		return nil
 	}
 
-	// Skip training info if present
-	if cart.header.Mapper1 & 0x04 != 0 {
+	// Seek to byte 16 (past header)
+	_, err = file.Seek(16, 0)
+	if err != nil {
+		log.Println("Error: failed to seek past header")
+		log.Println(err)
+		return nil
+	}
+
+	// If trainer is present, skip 512 bytes
+	if cart.header.Mapper1&0x04 != 0 {
+		log.Println("Trainer detected, skipping 512 bytes")
 		file.Seek(512, 1)
 	}
 
-	// Determine the mapper ID
+	// Determine mapper ID
 	cart.mapperID = ((cart.header.Mapper2 >> 4) << 4) | (cart.header.Mapper1 >> 4)
 
-	if cart.header.Mapper1 & 0x01 != 0 {
-		cart.mirror = 1  // vertical
+	// Determine mirroring mode
+	if cart.header.Mapper1&0x01 != 0 {
+		cart.mirror = VERTICAL
 	} else {
-		cart.mirror = 0  // horizontal
+		cart.mirror = HORIZONTAL
 	}
 
-	nFileType := 1  // I NES file type (there are 3 types of file)
-
-	if nFileType == 0 {
-
+	// Determine file type
+	nFileType := 1
+	if (cart.header.Mapper2 & 0x0C) == 0x08 {
+		nFileType = 2
 	}
 
 	if nFileType == 1 {
-		// Load program memory
+		// Load PRG-ROM
 		cart.numPrgBanks = cart.header.PrgRomChunks
-		cart.prgMemory = make([]uint8, uint16(cart.numPrgBanks) * 16384)
-		_, err = file.Read(cart.prgMemory)
+		cart.prgMemory = make([]uint8, uint32(cart.numPrgBanks)*16384)
+		_, err = io.ReadFull(file, cart.prgMemory)
 		if err != nil {
-			log.Println("Error: could not read program memory from ROM")
+			log.Println("Error: could not fully read PRG-ROM")
 			log.Println(err)
 			return nil
 		}
 
-		// Load character memory
+		// Load CHR-ROM or allocate CHR-RAM
 		cart.numChrBanks = cart.header.ChrRomChunks
 		if cart.numChrBanks == 0 {
-			log.Println("CHR-ROM size is 0; allocating CHR-RAM")
-			cart.chrMemory = make([]uint8, 8192) // Allocate CHR-RAM
-			cart.numChrBanks = 1
+			cart.chrMemory = make([]uint8, 8192)
 		} else {
-			cart.chrMemory = make([]uint8, uint16(cart.numChrBanks)*8192)
-			_, err = file.Read(cart.chrMemory)
+			cart.chrMemory = make([]uint8, uint32(cart.numChrBanks)*8192)
+			_, err = io.ReadFull(file, cart.chrMemory)
 			if err != nil {
-				log.Println("Error: could not read character memory from ROM")
+				log.Println("Error: could not fully read CHR-ROM")
+				log.Println(err)
 				return nil
 			}
 		}
-
-		// Load the mapper
-		switch cart.mapperID {
-			case 0:
-				cart.mapper = NewMapper_000(cart.numPrgBanks, cart.numChrBanks)
-			default:
-				log.Println("Mapper not supported for this cartridge")
-				return nil
-		}
-
-		cart.imageValid = true
 	}
 
-	if nFileType == 2 {
-
+	// Mapper setup
+	switch cart.mapperID {
+	case 0:
+		cart.mapper = NewMapper_000(cart.numPrgBanks, cart.numChrBanks)
+	case 2:
+		cart.mapper = NewMapper_002(cart.numPrgBanks, cart.numChrBanks)
+	default:
+		log.Println("Mapper not supported:", cart.mapperID)
+		return nil
 	}
 
+	cart.imageValid = true
 	return &cart
 }
-
 
 func (cart *Cartridge) ImageValid() bool {
 	return cart.imageValid
 }
 
-
 func (cart *Cartridge) CpuRead(addr uint16, data *uint8) bool {
 	mappedAddr := uint32(0)
-
-	if cart.mapper.CpuMapRead(addr, &mappedAddr) {
+	if cart.mapper.CpuMapRead(addr, &mappedAddr, data) {
+		if int(mappedAddr) >= len(cart.prgMemory) {
+			log.Printf("OUT OF BOUNDS READ: mappedAddr=%d, prgMemory size=%d", mappedAddr, len(cart.prgMemory))
+			return false
+		}
 		*data = cart.prgMemory[mappedAddr]
 		return true
-	} else {
-		return false
 	}
+	return false
 }
-
 
 func (cart *Cartridge) CpuWrite(addr uint16, data uint8) bool {
 	mappedAddr := uint32(0)
-
-	if cart.mapper.CpuMapWrite(addr, &mappedAddr) {
+	if cart.mapper.CpuMapWrite(addr, &mappedAddr, data) {
+		if int(mappedAddr) >= len(cart.prgMemory) {
+			log.Printf("OUT OF BOUNDS WRITE: mappedAddr=%d, prgMemory size=%d", mappedAddr, len(cart.prgMemory))
+			return false
+		}
 		cart.prgMemory[mappedAddr] = data
 		return true
-	} else {
-		return false
-	} 
+	}
+	return false
 }
-
 
 func (cart *Cartridge) PpuRead(addr uint16, data *uint8) bool {
 	mappedAddr := uint32(0)
-
 	if cart.mapper.PpuMapRead(addr, &mappedAddr) {
 		*data = cart.chrMemory[mappedAddr]
 		return true
-	} else {
-		return false
 	}
+	return false
 }
-
 
 func (cart *Cartridge) PpuWrite(addr uint16, data uint8) bool {
 	mappedAddr := uint32(0)
-
 	if cart.mapper.PpuMapWrite(addr, &mappedAddr) {
 		cart.chrMemory[mappedAddr] = data
 		return true
-	} else {
-		return false
-	} 
+	}
+	return false
+}
+
+func (cart *Cartridge) Reset() {
+	cart.mapper.Reset()
 }
