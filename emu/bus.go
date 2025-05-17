@@ -42,6 +42,7 @@ func NewBus() *Bus {
 func (b *Bus) Reset() {
 	b.Ppu.Reset()
 	b.Cpu.Reset()
+	b.cart.Reset()
 	b.nSystemClockCounter = 0
 	b.dmaPage = 0x00
 	b.dmaAddr = 0x00
