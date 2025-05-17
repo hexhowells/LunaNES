@@ -21,7 +21,7 @@ type Cartridge struct {
 	numPrgBanks uint8  // how many banks of memory for the program
 	numChrBanks uint8  // how many banks of memory for the characters
 	header sHeader  // INES file header
-	mapper *Mapper000  // onboard mapper
+	mapper MapperInterface  // onboard mapper
 	imageValid bool
 	mirror int
 }
