@@ -23,6 +23,7 @@ LunaNES is an NES emulator written in go. It is fully functional with mapper 0 w
 - [Mapper 0](https://nesdir.github.io/mapper0.html)
 - [Mapper 1](https://nesdir.github.io/mapper1.html) (planned)
 - [Mapper 2](https://nesdir.github.io/mapper2.html) (works with some games)
+- [Mapper 3](https://nesdir.github.io/mapper3.html) (planned)
 - [Mapper 4](https://nesdir.github.io/mapper4.html) (kinda works)
 
 ### Todo
